@@ -1,0 +1,9 @@
+{
+  "name": "studytube-monorepo",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ]
+} 
