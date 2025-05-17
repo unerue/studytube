@@ -1,5 +1,8 @@
+'use client';
+
 import { useState } from "react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/context/AuthContext";
 
 interface RegisterFormProps {
   onSuccess?: () => void;
@@ -10,49 +13,34 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [error, setError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { register, error: authError } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setPasswordError("");
     
     // 비밀번호 확인
     if (password !== passwordConfirm) {
-      setError("비밀번호가 일치하지 않습니다.");
+      setPasswordError("비밀번호가 일치하지 않습니다.");
       return;
     }
     
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username,
-          email,
-          password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "회원가입 실패");
-      }
-
+      await register(username, email, password);
+      
       // 성공 콜백 또는 리다이렉트
       if (onSuccess) {
         onSuccess();
       } else {
         router.push("/login");
       }
-    } catch (err: any) {
-      setError(err.message || "회원가입 중 오류가 발생했습니다.");
+    } catch (err) {
+      // 에러는 이미 AuthContext에서 처리됨
     } finally {
       setLoading(false);
     }
@@ -62,9 +50,9 @@ export default function RegisterForm({ onSuccess }: RegisterFormProps) {
     <div className="w-full max-w-md p-6 bg-white rounded-lg shadow-md">
       <h2 className="text-2xl font-bold mb-6 text-center text-blue-700">회원가입</h2>
       
-      {error && (
+      {(authError || passwordError) && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+          {passwordError || authError}
         </div>
       )}
       

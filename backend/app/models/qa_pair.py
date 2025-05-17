@@ -1,19 +1,28 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
-from ..db.database import Base
+from typing import Optional
+from datetime import datetime
+from sqlmodel import Field, SQLModel, Relationship
 
-class QAPair(Base):
+class QABase(SQLModel):
+    question: str
+    video_id: int = Field(foreign_key="videos.id")
+
+class QAPair(QABase, table=True):
     __tablename__ = "qa_pairs"
 
-    id = Column(Integer, primary_key=True, index=True)
-    question = Column(Text)
-    answer = Column(Text)
-    
-    user_id = Column(Integer, ForeignKey("users.id"))
-    video_id = Column(Integer, ForeignKey("videos.id"))
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    id: Optional[int] = Field(default=None, primary_key=True)
+    answer: str
+    user_id: int = Field(foreign_key="users.id")
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
     
     # 관계 설정
-    user = relationship("User", back_populates="qa_pairs")
-    video = relationship("Video", back_populates="qa_pairs") 
+    user: Optional["User"] = Relationship(back_populates="qa_pairs")
+    video: Optional["Video"] = Relationship(back_populates="qa_pairs")
+
+class QACreate(QABase):
+    pass
+
+class QARead(QABase):
+    id: int
+    answer: str
+    user_id: int
+    timestamp: datetime 

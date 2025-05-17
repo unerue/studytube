@@ -1,19 +1,19 @@
 from datetime import timedelta
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 from fastapi import HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
-from ..schemas.user import UserCreate, UserLogin, Token
-from ..models.user import User
-from ..services.auth import (
+from app.models.user import User, UserCreate, UserLogin
+from app.services.auth import (
     get_password_hash, authenticate_user, 
     create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
 # 사용자 등록 (회원가입)
-def register_user(db: Session, user_data: UserCreate):
+async def register_user(db: Session, user_data: UserCreate):
     # 이메일 중복 확인
-    db_user_email = db.query(User).filter(User.email == user_data.email).first()
+    statement = select(User).where(User.email == user_data.email)
+    db_user_email = db.exec(statement).first()
     if db_user_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -21,7 +21,8 @@ def register_user(db: Session, user_data: UserCreate):
         )
     
     # 사용자명 중복 확인
-    db_user_username = db.query(User).filter(User.username == user_data.username).first()
+    statement = select(User).where(User.username == user_data.username)
+    db_user_username = db.exec(statement).first()
     if db_user_username:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -45,7 +46,7 @@ def register_user(db: Session, user_data: UserCreate):
     return db_user
 
 # 로그인
-def login_user(db: Session, user_data: UserLogin):
+async def login_user(db: Session, user_data: UserLogin):
     # 사용자 인증
     user = authenticate_user(db, user_data.email, user_data.password)
     if not user:

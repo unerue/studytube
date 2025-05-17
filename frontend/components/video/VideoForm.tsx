@@ -1,5 +1,8 @@
+'use client';
+
 import { useState } from "react";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/context/AuthContext";
 
 interface VideoFormProps {
   onSuccess?: (videoId: number) => void;
@@ -10,6 +13,7 @@ export default function VideoForm({ onSuccess }: VideoFormProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { isLoggedIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,11 +26,12 @@ export default function VideoForm({ onSuccess }: VideoFormProps) {
         throw new Error("유효한 YouTube URL을 입력해주세요.");
       }
 
-      const token = localStorage.getItem("access_token");
-      if (!token) {
+      if (!isLoggedIn) {
         throw new Error("로그인이 필요합니다.");
       }
 
+      const token = localStorage.getItem("access_token");
+      
       const response = await fetch("http://localhost:8000/videos/", {
         method: "POST",
         headers: {

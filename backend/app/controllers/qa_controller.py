@@ -1,15 +1,18 @@
-from sqlalchemy.orm import Session
+from sqlmodel import Session, select
 from fastapi import HTTPException, status
 
-from ..schemas.qa import QACreate, QAResponse
-from ..models.qa_pair import QAPair
-from ..models.video import Video
-from ..services.ai import answer_question
+from app.models.qa_pair import QAPair, QACreate
+from app.models.video import Video
+from app.services.ai import answer_question
 
 # 질문 등록 및 AI 답변 생성
 async def create_qa(db: Session, qa_data: QACreate, user_id: int):
     # 영상 존재 확인
-    video = db.query(Video).filter(Video.id == qa_data.video_id).first()
+    statement = select(Video).where(Video.id == qa_data.video_id)
+    # 동기적으로 쿼리 실행
+    results = db.execute(statement)
+    video = results.scalars().first()
+    
     if not video:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -39,10 +42,41 @@ async def create_qa(db: Session, qa_data: QACreate, user_id: int):
     return db_qa
 
 # 사용자의 질문-답변 목록 가져오기
-def get_user_qa_pairs(db: Session, user_id: int, video_id: int = None, skip: int = 0, limit: int = 100):
-    query = db.query(QAPair).filter(QAPair.user_id == user_id)
+async def get_user_qa_pairs(db: Session, user_id: int, video_id: int = None, skip: int = 0, limit: int = 100):
+    query = select(QAPair).where(QAPair.user_id == user_id)
     
     if video_id:
-        query = query.filter(QAPair.video_id == video_id)
+        query = query.where(QAPair.video_id == video_id)
     
-    return query.order_by(QAPair.timestamp.desc()).offset(skip).limit(limit).all() 
+    query = query.order_by(QAPair.timestamp.desc()).offset(skip).limit(limit)
+    # 동기적으로 쿼리 실행
+    results = db.execute(query)
+    return results.scalars().all()
+
+# 특정 영상의 모든 질문-답변 목록 가져오기
+async def get_video_qa_pairs(db: Session, video_id: int, skip: int = 0, limit: int = 100):
+    try:
+        # 영상 존재 확인
+        video_statement = select(Video).where(Video.id == video_id)
+        video_result = db.execute(video_statement)
+        video = video_result.scalars().first()
+        
+        if not video:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="영상을 찾을 수 없습니다."
+            )
+        
+        # 영상에 대한 모든 질문-답변 조회
+        query = select(QAPair).where(QAPair.video_id == video_id)
+        query = query.order_by(QAPair.timestamp.desc()).offset(skip).limit(limit)
+        
+        # 동기적으로 쿼리 실행
+        results = db.execute(query)
+        return results.scalars().all()
+    except Exception as e:
+        print(f"get_video_qa_pairs 오류: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"질문-답변 목록 조회 중 오류 발생: {str(e)}"
+        ) 

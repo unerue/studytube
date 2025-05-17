@@ -2,15 +2,20 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
-from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlmodel import Session, select
 
-from ..models.user import User
-from ..schemas.user import TokenData
+from app.db.database import get_db
+from app.models.user import User, TokenData
 
 # JWT 설정
 SECRET_KEY = "your-secret-key"  # 실제 프로젝트에서는 환경변수로 관리
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24시간으로 설정
+
+# OAuth2 설정
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 # 비밀번호 해싱 설정
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -22,7 +27,8 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 def authenticate_user(db: Session, email: str, password: str):
-    user = db.query(User).filter(User.email == email).first()
+    statement = select(User).where(User.email == email)
+    user = db.exec(statement).first()
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -39,8 +45,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def get_current_user(db: Session, token: str):
-    credentials_exception = Exception("Could not validate credentials")
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="인증 정보가 유효하지 않습니다",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -50,7 +60,8 @@ def get_current_user(db: Session, token: str):
     except JWTError:
         raise credentials_exception
     
-    user = db.query(User).filter(User.username == token_data.username).first()
+    statement = select(User).where(User.username == token_data.username)
+    user = db.exec(statement).first()
     if user is None:
         raise credentials_exception
     return user 

@@ -1,25 +1,20 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlmodel import create_engine, Session, SQLModel
 
 # SQLite 연결 URL
-SQLALCHEMY_DATABASE_URL = "sqlite:///./studytube.db"
+DATABASE_URL = "sqlite:///./studytube.db"
 
 # 엔진 생성
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    DATABASE_URL, 
+    connect_args={"check_same_thread": False},
+    echo=True  # SQL 쿼리 로깅 (개발 시 유용)
 )
-
-# 세션 생성
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# 모델의 기본 클래스
-Base = declarative_base()
 
 # DB 종속성 주입 함수
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close() 
+    with Session(engine) as session:
+        yield session
+
+# 데이터베이스 초기화 함수
+def init_db():
+    SQLModel.metadata.create_all(engine) 

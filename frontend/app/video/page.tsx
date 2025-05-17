@@ -1,26 +1,25 @@
 'use client';
-import { useEffect, useState } from 'react';
+
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import VideoForm from '../../components/video/VideoForm';
+import VideoForm from '@/components/video/VideoForm';
 import Link from 'next/link';
+import { useAuth } from '@/lib/context/AuthContext';
 
 export default function VideoPage() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const router = useRouter();
+  const { isLoggedIn, loading } = useAuth();
   
   useEffect(() => {
-    // 로그인 상태 확인
-    const token = localStorage.getItem('access_token');
-    setIsLoggedIn(!!token);
-    
     // 로그인 상태가 아니면 로그인 페이지로 리다이렉트
-    if (!token) {
+    if (!loading && !isLoggedIn) {
       router.push('/login');
     }
-  }, [router]);
+  }, [isLoggedIn, loading, router]);
   
-  if (!isLoggedIn) {
-    return null; // 로그인 상태 확인 중이거나 리다이렉트 중일 때는 아무것도 표시하지 않음
+  // 로딩 중이거나 로그인 상태가 아니면 아무것도 표시하지 않음
+  if (loading || !isLoggedIn) {
+    return null;
   }
   
   return (

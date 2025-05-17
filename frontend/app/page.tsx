@@ -1,15 +1,10 @@
 'use client';
-import { useEffect, useState } from 'react';
+
 import Link from 'next/link';
+import { useAuth } from '@/lib/context/AuthContext';
 
 export default function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    // 로그인 상태 확인
-    const token = localStorage.getItem('access_token');
-    setIsLoggedIn(!!token);
-  }, []);
+  const { isLoggedIn } = useAuth();
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-blue-100 to-white">
