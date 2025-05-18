@@ -1,6 +1,9 @@
 import re
 import httpx
 from typing import Dict, Any, Optional
+import subprocess
+from moviepy import VideoFileClip
+from PIL import Image
 
 # YouTube 영상 ID 추출 함수
 def extract_video_id(url: str) -> Optional[str]:
@@ -60,3 +63,17 @@ async def get_video_transcript(video_id: str) -> str:
     # 이 부분은 실제 구현시 youtube-transcript-api 등을 사용하여 구현
     # 여기서는 더미 데이터 반환
     return "이 영상의 자막입니다. 실제 구현에서는 YouTube API 또는 서드파티 라이브러리를 사용하세요."
+
+def extract_thumbnail_from_video(video_path: str, thumbnail_path: str, time: int = 5) -> None:
+    """
+    moviepy를 사용해 영상에서 특정 시점(time, 초)의 프레임을 추출해 썸네일 이미지를 저장합니다.
+    """
+    try:
+        with VideoFileClip(video_path) as clip:
+            # 영상 길이보다 추출 시간이 길면 마지막 프레임 사용
+            t = min(time, int(clip.duration) - 1) if clip.duration > 1 else 0
+            frame = clip.get_frame(t)
+            image = Image.fromarray(frame)
+            image.save(thumbnail_path, "JPEG")
+    except Exception as e:
+        raise RuntimeError(f"moviepy 썸네일 추출 오류: {e}")

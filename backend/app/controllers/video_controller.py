@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from app.models.video import Video, VideoCreate, VideoRead, VideoReadDetailed
 from app.models.user import User
-from app.services.youtube import extract_video_id, get_video_info, get_video_transcript
+from app.services.youtube import extract_video_id, get_video_info, get_video_transcript, extract_thumbnail_from_video
 from app.services.ai import summarize_text
 
 # YouTube API 키 (실제 프로젝트에서는 환경변수로 관리)
@@ -17,10 +17,42 @@ async def add_video(db: Session, video_data: VideoCreate, user_id: int):
     # 유튜브 URL에서 영상 ID 추출
     video_id = extract_video_id(video_data.url)
     if not video_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="유효하지 않은 YouTube URL입니다."
+        # static 폴더에 저장된 로컬 영상일 수 있음
+        # 예: url이 static/xxx.mp4 형태
+        if video_data.url.startswith('static/'):
+            video_path = pathlib.Path(video_data.url)
+            if not video_path.is_absolute():
+                video_path = pathlib.Path('backend') / video_data.url
+            # 썸네일 경로
+            thumbnail_dir = pathlib.Path('backend/static/thumbnails')
+            thumbnail_dir.mkdir(parents=True, exist_ok=True)
+            thumbnail_path = thumbnail_dir / f"{video_path.stem}.jpg"
+            try:
+                extract_thumbnail_from_video(str(video_path), str(thumbnail_path), time=5)
+                thumbnail_url = f"static/thumbnails/{video_path.stem}.jpg"
+            except Exception as e:
+                thumbnail_url = ""
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="유효하지 않은 YouTube URL 또는 지원하지 않는 영상 경로입니다."
+            )
+        # DB에 영상 저장
+        db_video = Video(
+            url=video_data.url,
+            title=video_data.url,
+            thumbnail_url=thumbnail_url,
+            description="로컬 영상입니다.",
+            duration="00:00",
+            transcript="",
+            summary="",
+            user_id=user_id,
+            is_public=False
         )
+        db.add(db_video)
+        db.commit()
+        db.refresh(db_video)
+        return db_video
     
     # 기존 영상 확인
     statement = select(Video).where(Video.url == video_data.url)
@@ -129,20 +161,26 @@ async def initialize_static_videos(db: Session, admin_user_id: int):
     # static 폴더의 모든 파일을 확인
     for file_path in static_folder.iterdir():
         if file_path.is_file() and file_path.suffix.lower() in video_extensions:
-            # 이미 DB에 있는지 확인
             url = f"static/{file_path.name}"
             statement = select(Video).where(Video.url == url)
             existing_video = db.exec(statement).first()
-            
             if existing_video:
                 videos.append(existing_video)
                 continue
-            
+            # 썸네일 생성
+            thumbnail_dir = pathlib.Path('static/thumbnails')
+            thumbnail_dir.mkdir(parents=True, exist_ok=True)
+            thumbnail_path = thumbnail_dir / f"{file_path.stem}.jpg"
+            try:
+                extract_thumbnail_from_video(str(file_path), str(thumbnail_path), time=5)
+                thumbnail_url = f"static/thumbnails/{file_path.stem}.jpg"
+            except Exception as e:
+                thumbnail_url = ""
             # 새 비디오 생성
             db_video = Video(
                 url=url,
                 title=file_path.stem,  # 파일 이름을 제목으로 사용
-                thumbnail_url="",  # 실제 구현에서는 썸네일 생성 로직 필요
+                thumbnail_url=thumbnail_url,
                 description=f"{file_path.name} 영상입니다.",
                 transcript="",  # 자막 정보 (실제로는 자막 추출 로직 필요)
                 summary="",  # 요약 정보 (실제로는 AI 요약 생성 필요)
@@ -150,7 +188,6 @@ async def initialize_static_videos(db: Session, admin_user_id: int):
                 is_public=True,  # 공개 비디오로 설정
                 duration="00:00"  # 기본 duration 추가
             )
-            
             db.add(db_video)
             db.commit()
             db.refresh(db_video)

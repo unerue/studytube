@@ -109,7 +109,11 @@ export default function StudyPage() {
                     <Avatar 
                       shape="square" 
                       size={64} 
-                      src={video.thumbnail_url} 
+                      src={video.thumbnail_url
+                        ? (video.thumbnail_url.startsWith('http')
+                            ? video.thumbnail_url
+                            : `${API_BASE_URL}/${video.thumbnail_url}`)
+                        : undefined}
                       icon={<PlayCircleOutlined />} 
                     />
                   }

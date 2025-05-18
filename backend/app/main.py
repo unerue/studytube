@@ -14,6 +14,7 @@ from app.services.auth import get_current_user, get_password_hash
 from app.controllers.video_controller import initialize_static_videos
 from app.models.user import User
 from app.models.video import Video
+from app.services.youtube import extract_thumbnail_from_video
 
 # OAuth2 설정
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -56,6 +57,8 @@ async def lifespan(app: FastAPI):
         
         # static 폴더의 영상을 DB에 등록
         static_folder = pathlib.Path("static")
+        thumbnail_dir = static_folder / "thumbnails"
+        thumbnail_dir.mkdir(parents=True, exist_ok=True)
         if static_folder.exists() and static_folder.is_dir():
             video_extensions = ['.mp4', '.avi', '.mov', '.mkv']
             
@@ -63,11 +66,11 @@ async def lifespan(app: FastAPI):
                 if file_path.is_file() and file_path.suffix.lower() in video_extensions:
                     url = f"static/{file_path.name}"
                     
-                    # 새 비디오 생성
+                    # 1. DB에 먼저 저장 (썸네일 없이)
                     db_video = Video(
                         url=url,
                         title=file_path.stem,  # 파일 이름을 제목으로 사용
-                        thumbnail_url="",
+                        thumbnail_url="",  # 일단 빈 값
                         description=f"{file_path.name} 영상입니다.",
                         transcript="",
                         summary="",
@@ -75,10 +78,23 @@ async def lifespan(app: FastAPI):
                         is_public=True,  # 공개 비디오로 설정
                         duration="00:00"  # 기본 값
                     )
-                    
                     db.add(db_video)
                     db.commit()
-                    print(f"비디오 등록됨: {file_path.name}")
+                    db.refresh(db_video)
+                    print(f"비디오 등록됨: {file_path.name} (id={db_video.id})")
+                    # 2. 썸네일 생성 (video_id 기준)
+                    thumbnail_path = thumbnail_dir / f"{db_video.id}.jpg"
+                    if not thumbnail_path.exists():
+                        try:
+                            print(f"썸네일 생성: {file_path} -> {thumbnail_path}")
+                            extract_thumbnail_from_video(str(file_path), str(thumbnail_path), time=5)
+                            print(f"썸네일 생성 성공: {thumbnail_path}")
+                            # 3. DB에 썸네일 경로 업데이트
+                            db_video.thumbnail_url = f"static/thumbnails/{db_video.id}.jpg"
+                            db.add(db_video)
+                            db.commit()
+                        except Exception as e:
+                            print(f"썸네일 생성 실패: {e}")
     
     yield
     # 애플리케이션 종료 시 필요한 정리 작업

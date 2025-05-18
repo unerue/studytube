@@ -5,7 +5,7 @@ import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/lib/context/AuthContext';
 import { Card, Row, Col, Typography, Empty, Button, Spin, Alert, Badge, Tooltip, Modal, message } from 'antd';
-import { VIDEO_ENDPOINTS, getAuthHeaders, DEFAULT_FETCH_OPTIONS } from '@/lib/api/config';
+import { VIDEO_ENDPOINTS, getAuthHeaders, DEFAULT_FETCH_OPTIONS, API_BASE_URL } from '@/lib/api/config';
 import { PlayCircleOutlined, RobotOutlined, SoundOutlined, TranslationOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -210,14 +210,17 @@ export default function DashboardPage() {
       <Row gutter={[16, 16]}>
         {videos.map(video => (
           <Col key={video.id} xs={24} sm={12} md={8} lg={6}>
+            
             <Card
               hoverable
               cover={
                 video.thumbnail_url ? (
-                  <img 
-                    alt={video.title} 
-                    src={video.thumbnail_url}
-                    className="aspect-video object-cover" 
+                  <img
+                    alt={video.title}
+                    src={video.thumbnail_url.startsWith('http')
+                      ? video.thumbnail_url
+                      : `${API_BASE_URL}/${video.thumbnail_url}`}
+                    className="aspect-video object-cover"
                   />
                 ) : (
                   <div className="aspect-video bg-gray-200 flex items-center justify-center text-gray-500">
