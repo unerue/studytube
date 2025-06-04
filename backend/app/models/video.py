@@ -2,12 +2,14 @@ from typing import Optional, List
 from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship
 
+
 class VideoBase(SQLModel):
     url: str = Field(unique=True)
     title: Optional[str] = Field(default=None, index=True)
     thumbnail_url: Optional[str] = None
     description: Optional[str] = None
     duration: Optional[str] = None  # 재생 시간 (초 단위 또는 "00:00" 형식)
+
 
 class Video(VideoBase, table=True):
     __tablename__ = "videos"

@@ -78,3 +78,5 @@ frontend/
 ├── styles/
 └── public/
 ``` 
+
+실시간 번역: Meta의 SEAMLESSM4T 

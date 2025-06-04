@@ -26,6 +26,7 @@ class WhisperResponse(BaseModel):
     segments: List[Dict[str, Any]] = []
     language: str
 
+
 async def transcribe_audio(audio_file_path: str, language: Optional[str] = None) -> WhisperResponse:
     """
     오디오 파일에서 자막을 추출합니다. 테스트 모드에서는 더미 응답을 반환합니다.
