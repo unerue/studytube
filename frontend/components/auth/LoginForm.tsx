@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/context/AuthContext";
 
 interface LoginFormProps {
@@ -13,7 +13,25 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login, error: authError } = useAuth();
+
+  // 로그인 성공 후 리다이렉트할 URL 결정
+  const getRedirectUrl = () => {
+    const callbackUrl = searchParams.get('callbackUrl');
+    const from = searchParams.get('from');
+    
+    // 보안상 내부 URL만 허용
+    if (callbackUrl && callbackUrl.startsWith('/')) {
+      return callbackUrl;
+    }
+    
+    if (from && from.startsWith('/')) {
+      return from;
+    }
+    
+    return '/';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,10 +44,12 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push("/");
+        const redirectUrl = getRedirectUrl();
+        router.push(redirectUrl);
       }
     } catch (err) {
       // 에러는 이미 AuthContext에서 처리됨
+      console.error('로그인 실패:', err);
     } finally {
       setLoading(false);
     }

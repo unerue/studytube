@@ -3,7 +3,9 @@
 ## 프로젝트 개요
 한국 거주 외국인 학생을 위한 AI 기반 유튜브 학습 도우미 SaaS
 
+
 ## 폴더 구조
+
 ```
 studytube/
 ├── frontend/         # Next.js + Tailwind CSS (프론트엔드)
@@ -17,6 +19,7 @@ studytube/
 ```
 
 ## 기술 스택
+
 - 프론트엔드: Next.js, Tailwind CSS, pnpm
 - 백엔드: FastAPI, uvicorn, MVC 패턴
 - DB: SQLite
@@ -42,12 +45,14 @@ studytube/
 ## 설치 방법
 
 ### 1. 코드 클론
+
 ```bash
 git clone <repository-url>
 cd studytube
 ```
 
 ### 2. 프론트엔드 설치
+
 ```bash
 # pnpm 설치 (아직 없는 경우)
 npm install -g pnpm

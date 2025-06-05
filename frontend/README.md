@@ -17,7 +17,8 @@ StudyTube는 유튜브 영상을 AI가 분석하여 효과적인 학습을 도�
 ```
 pnpm create next-app my-app --typescript --tailwind --eslint
 ```
-
+교수: professor@studytube.com / test123
+학생: student1@studytube.com / test123
 
 
 1. 레포지토리 클론

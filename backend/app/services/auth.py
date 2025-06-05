@@ -2,9 +2,10 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
-from sqlmodel import Session, select
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlmodel import select
 
 from app.db.database import get_db
 from app.models.user import User, TokenData
@@ -15,7 +16,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24시간으로 설정
 
 # OAuth2 설정
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
 # 비밀번호 해싱 설정
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -28,9 +29,10 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def authenticate_user(db: Session, email: str, password: str):
+async def authenticate_user(db: AsyncSession, email: str, password: str):
     statement = select(User).where(User.email == email)
-    user = db.exec(statement).first()
+    result = await db.exec(statement)
+    user = result.first()
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -49,12 +51,39 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+def decode_token(token: str):
+    """JWT 토큰을 디코딩하여 payload 반환"""
+    try:
+        print(f"토큰 디코딩 시작: {token[:20]}...")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print(f"토큰 디코딩 성공: {payload}")
+        return payload
+    except JWTError as e:
+        print(f"토큰 디코딩 실패: {type(e).__name__}: {e}")
+        import traceback
+        print(f"전체 스택 트레이스: {traceback.format_exc()}")
+        return None
+
+
+async def get_current_user(
+    request: Request,
+    token: Optional[str] = Depends(oauth2_scheme), 
+    db: AsyncSession = Depends(get_db)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="인증 정보가 유효하지 않습니다",
         headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # 1. Authorization 헤더에서 토큰 확인
+    if token is None:
+        # 2. 쿠키에서 토큰 확인
+        token = request.cookies.get("access_token")
+    
+    if token is None:
+        raise credentials_exception
+    
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -65,7 +94,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise credentials_exception
     
     statement = select(User).where(User.username == token_data.username)
-    user = db.exec(statement).first()
+    result = await db.exec(statement)
+    user = result.first()
     if user is None:
         raise credentials_exception
     return user

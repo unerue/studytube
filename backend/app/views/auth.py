@@ -52,4 +52,14 @@ async def login(
 async def get_current_user_info(
     current_user = Depends(get_current_user)
 ):
-    return current_user 
+    return current_user
+
+# 로그아웃 API
+@router.post("/logout")
+async def logout(response: Response):
+    # 쿠키에서 access_token 제거
+    response.delete_cookie(
+        key="access_token",
+        samesite="lax",
+    )
+    return {"message": "로그아웃 성공"} 

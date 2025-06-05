@@ -4,38 +4,28 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/lib/context/AuthContext';
-import { Card, Row, Col, Typography, Empty, Button, Spin, Alert, Badge, Tooltip, Modal, message } from 'antd';
-import { VIDEO_ENDPOINTS, getAuthHeaders, DEFAULT_FETCH_OPTIONS, API_BASE_URL } from '@/lib/api/config';
-import { PlayCircleOutlined, RobotOutlined, SoundOutlined, TranslationOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Row, Col, Typography, Empty, Button, Spin, Alert, Badge, Tooltip, Modal, message, Statistic, Divider } from 'antd';
+import { getAuthHeaders, DEFAULT_FETCH_OPTIONS } from '@/lib/api/config';
+import { PlayCircleOutlined, PlusOutlined, TeamOutlined, VideoCameraOutlined, BookOutlined, DesktopOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
-interface Video {
+interface Lecture {
   id: number;
   title: string;
-  thumbnail_url: string;
-  created_at: string;
-  url: string;
-  is_processed?: boolean;
-}
-
-interface VideoStatus {
-  is_processed: boolean;
-  error: string | null;
-  has_transcript: boolean;
-  has_translation: boolean;
-  has_tts: boolean;
+  description: string;
+  scheduled_start: string;
+  status: string;
+  participant_count: number;
 }
 
 export default function DashboardPage() {
-  const [videos, setVideos] = useState<Video[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [lectures, setLectures] = useState<Lecture[]>([]);
+  const [lecturesLoading, setLecturesLoading] = useState(true);
   const [error, setError] = useState("");
-  const [processingVideos, setProcessingVideos] = useState<{[key: string]: boolean}>({});
-  const [videoStatuses, setVideoStatuses] = useState<{[key: string]: VideoStatus}>({});
   
   const router = useRouter();
-  const { isLoggedIn, loading: authLoading } = useAuth();
+  const { isLoggedIn, loading: authLoading, user } = useAuth();
   
   useEffect(() => {
     // 로그인 상태 확인
@@ -45,264 +35,382 @@ export default function DashboardPage() {
     }
     
     if (isLoggedIn) {
-      // 내 영상 목록 가져오기
-      const fetchMyVideos = async () => {
-        try {
-          const response = await fetch(VIDEO_ENDPOINTS.MY_VIDEOS, {
-            headers: getAuthHeaders(),
-            ...DEFAULT_FETCH_OPTIONS
-          });
-          
-          if (!response.ok) {
-            throw new Error("영상 목록을 가져올 수 없습니다.");
-          }
-          
-          const data = await response.json();
-          setVideos(data);
-          
-          // 각 비디오의 처리 상태 가져오기 (정적 파일만)
-          const statuses: {[key: string]: VideoStatus} = {};
-          for (const video of data) {
-            if (video.url && video.url.startsWith('static/')) {
-              try {
-                const statusResponse = await fetch(VIDEO_ENDPOINTS.VIDEO_STATUS(video.id), {
-                  headers: getAuthHeaders(),
-                  ...DEFAULT_FETCH_OPTIONS
-                });
-                
-                if (statusResponse.ok) {
-                  const statusData = await statusResponse.json();
-                  statuses[video.id] = statusData;
-                }
-              } catch (err) {
-                console.error(`Failed to fetch status for video ${video.id}:`, err);
-              }
-            }
-          }
-          
-          setVideoStatuses(statuses);
-        } catch (err: any) {
-          setError(err.message || "오류가 발생했습니다.");
-        } finally {
-          setLoading(false);
-        }
-      };
-      
-      fetchMyVideos();
+      // 사용자 역할에 따라 다른 데이터 로드
+      if (user?.role === 'instructor') {
+        fetchInstructorData();
+      } else {
+        fetchStudentData();
+      }
     }
-  }, [router, isLoggedIn, authLoading]);
-  
-  // 비디오 AI 처리 시작
-  const startVideoProcessing = async (videoId: number, e: React.MouseEvent) => {
-    e.stopPropagation(); // 카드 클릭 이벤트 전파 방지
-    
+  }, [router, isLoggedIn, authLoading, user]);
+
+  // 강사용 데이터 로드
+  const fetchInstructorData = async () => {
     try {
-      setProcessingVideos(prev => ({ ...prev, [videoId]: true }));
-      
-      const response = await fetch(VIDEO_ENDPOINTS.PROCESS_VIDEO(videoId.toString()), {
-        method: 'POST',
+      // 강의 목록 가져오기
+      const lecturesResponse = await fetch('http://localhost:8000/lectures/', {
         headers: getAuthHeaders(),
         ...DEFAULT_FETCH_OPTIONS
       });
       
-      if (!response.ok) {
-        throw new Error("영상 처리 요청에 실패했습니다.");
+      if (lecturesResponse.ok) {
+        const lecturesData = await lecturesResponse.json();
+        setLectures(lecturesData);
       }
       
-      const data = await response.json();
-      message.success("영상 AI 처리가 시작되었습니다. 완료까지 몇 분 소요될 수 있습니다.");
+      setLecturesLoading(false);
+    } catch (err: any) {
+      console.error('강사 데이터 로드 실패:', err);
+      setError(err.message || "오류가 발생했습니다.");
+      setLecturesLoading(false);
+    }
+  };
+
+  // 학생용 데이터 로드
+  const fetchStudentData = async () => {
+    try {
+      // 수강 가능한 강의 목록 가져오기
+      const lecturesResponse = await fetch('http://localhost:8000/lectures/', {
+        headers: getAuthHeaders(),
+        ...DEFAULT_FETCH_OPTIONS
+      });
       
-      // 상태 확인 인터벌 시작 (5초마다)
-      const checkInterval = setInterval(async () => {
-        try {
-          const statusResponse = await fetch(VIDEO_ENDPOINTS.VIDEO_STATUS(videoId.toString()), {
-            headers: getAuthHeaders(),
-            ...DEFAULT_FETCH_OPTIONS
-          });
-          
-          if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            setVideoStatuses(prev => ({ ...prev, [videoId]: statusData }));
-            
-            // 처리가 완료되었거나 에러가 발생한 경우 인터벌 종료
-            if (statusData.is_processed || statusData.error) {
-              clearInterval(checkInterval);
-              setProcessingVideos(prev => ({ ...prev, [videoId]: false }));
-              
-              if (statusData.error) {
-                message.error(`AI 처리 중 오류가 발생했습니다: ${statusData.error}`);
-              } else if (statusData.is_processed) {
-                message.success("영상 AI 처리가 완료되었습니다.");
-              }
-            }
-          }
-        } catch (err) {
-          console.error("AI 처리 상태 확인 중 오류 발생:", err);
-        }
-      }, 5000);
-      
-      // 1분 후 자동으로 인터벌 종료 (최대 대기 시간)
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        if (processingVideos[videoId]) {
-          setProcessingVideos(prev => ({ ...prev, [videoId]: false }));
-          message.info("처리가 진행 중입니다. 새로고침 후 결과를 확인해주세요.");
-        }
-      }, 60000);
+      if (lecturesResponse.ok) {
+        const lecturesData = await lecturesResponse.json();
+        setLectures(lecturesData);
+      }
       
     } catch (err: any) {
-      setProcessingVideos(prev => ({ ...prev, [videoId]: false }));
-      message.error(err.message || "영상 처리 요청 중 오류가 발생했습니다.");
+      setError(err.message || "오류가 발생했습니다.");
+    } finally {
+      setLecturesLoading(false);
     }
   };
   
-  // 날짜 형식 변환 함수
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('ko-KR', {
+    return new Date(dateString).toLocaleString('ko-KR', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
-    }).format(date);
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
-  
-  if (authLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Spin size="large" />
+
+  const getLectureStatusColor = (status: string): "error" | "default" | "success" | "warning" | "processing" => {
+    switch (status) {
+      case 'live':
+        return "processing";
+      case 'scheduled':
+        return "default";
+      case 'ended':
+        return "success";
+      default:
+        return "default";
+    }
+  };
+
+  // 강사용 대시보드
+  const InstructorDashboard = () => (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <Title level={2}>👨‍🏫 강사 대시보드</Title>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => router.push('/lectures/create')}>
+          새 강의 개설
+        </Button>
       </div>
-    );
-  }
-  
-  if (!isLoggedIn) {
-    return null;
-  }
-  
-  const content = () => {
-    if (loading) {
-      return (
-        <div className="flex justify-center py-12">
+
+      {/* 강사 통계 */}
+      <Row gutter={16} className="mb-6">
+        <Col span={6}>
+          <Card>
+            <Statistic title="총 강의 수" value={lectures.length} prefix={<BookOutlined />} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic 
+              title="진행 중 강의" 
+              value={lectures.filter(l => l.status === 'live').length} 
+              prefix={<VideoCameraOutlined />}
+              valueStyle={{ color: '#f5222d' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic 
+              title="예정된 강의" 
+              value={lectures.filter(l => l.status === 'scheduled').length} 
+              prefix={<DesktopOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic 
+              title="총 참가자" 
+              value={lectures.reduce((sum, l) => sum + l.participant_count, 0)} 
+              prefix={<TeamOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 강의 목록 */}
+      <Title level={3}>내 강의 목록</Title>
+      {lecturesLoading ? (
+        <div className="flex justify-center py-8">
           <Spin size="large" />
         </div>
-      );
-    }
-    
-    if (error) {
-      return (
-        <Alert type="error" message={error} className="mb-4" />
-      );
-    }
-    
-    if (videos.length === 0) {
-      return (
+      ) : lectures.length === 0 ? (
         <Empty
-          description="아직 추가한 영상이 없습니다."
+          description="아직 개설한 강의가 없습니다."
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         >
-          <Button type="primary" onClick={() => router.push('/video')}>
-            첫 영상 추가하기
+          <Button type="primary" onClick={() => router.push('/lectures/create')}>
+            첫 강의 개설하기
           </Button>
         </Empty>
-      );
-    }
-    
-    return (
-      <Row gutter={[16, 16]}>
-        {videos.map(video => (
-          <Col key={video.id} xs={24} sm={12} md={8} lg={6}>
-            
-            <Card
-              hoverable
-              cover={
-                video.thumbnail_url ? (
-                  <img
-                    alt={video.title}
-                    src={video.thumbnail_url.startsWith('http')
-                      ? video.thumbnail_url
-                      : `${API_BASE_URL}/${video.thumbnail_url}`}
-                    className="aspect-video object-cover"
-                  />
-                ) : (
-                  <div className="aspect-video bg-gray-200 flex items-center justify-center text-gray-500">
-                    No Thumbnail
-                  </div>
-                )
-              }
-              onClick={() => router.push(`/study/${video.id}`)}
-              actions={
-                video.url && video.url.startsWith('static/') 
-                  ? [
-                      <Button 
-                        key="play" 
-                        type="link" 
-                        icon={<PlayCircleOutlined />}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/study/${video.id}`);
-                        }}
-                      >
-                        보기
-                      </Button>,
-                      <Button
-                        key="process"
-                        type="link"
-                        icon={<RobotOutlined />}
-                        loading={processingVideos[video.id]}
-                        disabled={videoStatuses[video.id]?.is_processed || processingVideos[video.id]}
-                        onClick={(e) => startVideoProcessing(video.id, e)}
-                      >
-                        {processingVideos[video.id] ? "처리 중..." : 
-                          (videoStatuses[video.id]?.is_processed ? "처리 완료" : "AI 변환")}
-                      </Button>
-                    ]
-                  : undefined
-              }
-            >
-              <Card.Meta
-                title={video.title}
-                description={
-                  <div>
-                    <div>{formatDate(video.created_at)}</div>
-                    {video.url && video.url.startsWith('static/') && videoStatuses[video.id] && (
-                      <div className="mt-2 flex items-center space-x-2">
-                        {videoStatuses[video.id].has_transcript && (
-                          <Tooltip title="원본 자막 생성됨">
-                            <CheckCircleOutlined style={{ color: 'green' }} />
-                          </Tooltip>
-                        )}
-                        {videoStatuses[video.id].has_translation && (
-                          <Tooltip title="번역 자막 생성됨">
-                            <TranslationOutlined style={{ color: 'green' }} />
-                          </Tooltip>
-                        )}
-                        {videoStatuses[video.id].has_tts && (
-                          <Tooltip title="AI 음성 생성됨">
-                            <SoundOutlined style={{ color: 'green' }} />
-                          </Tooltip>
-                        )}
+      ) : (
+        <Row gutter={[16, 16]}>
+          {lectures.map(lecture => (
+            <Col key={lecture.id} xs={24} sm={12} md={8}>
+              <Card
+                hoverable
+                className="h-full shadow-lg border-0 rounded-xl overflow-hidden transition-transform hover:scale-105"
+                cover={
+                  <div className="bg-gradient-to-br from-blue-500 to-indigo-600 h-32 flex items-center justify-center relative">
+                    <VideoCameraOutlined className="text-4xl text-white opacity-80" />
+                    {lecture.status === 'live' && (
+                      <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                        LIVE
                       </div>
                     )}
                   </div>
                 }
-              />
-            </Card>
-          </Col>
-        ))}
-      </Row>
+                actions={[
+                  <Button 
+                    key="enter" 
+                    type="primary"
+                    icon={<PlayCircleOutlined />}
+                    onClick={() => router.push(`/lectures/${lecture.id}`)}
+                    className="w-full mx-3 shadow-sm"
+                    size="large"
+                  >
+                    강의실 입장
+                  </Button>
+                ]}
+              >
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <Title level={5} className="line-clamp-2 mb-2 text-gray-900">
+                      {lecture.title}
+                    </Title>
+                    <Badge status={getLectureStatusColor(lecture.status)} text={lecture.status} />
+                  </div>
+                  
+                  <Text className="text-gray-600 text-sm line-clamp-2 block">
+                    {lecture.description}
+                  </Text>
+                  
+                  <div className="pt-2 border-t border-gray-100">
+                    <div className="flex justify-between text-xs text-gray-500 mb-2">
+                      <span>시작: {formatDate(lecture.scheduled_start)}</span>
+                    </div>
+                    <Text className="text-blue-600 font-medium text-sm">
+                      참가자: {lecture.participant_count}명
+                    </Text>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
+    </div>
+  );
+
+  // 학생용 대시보드
+  const StudentDashboard = () => (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <Title level={2}>👨‍🎓 학습 대시보드</Title>
+        <Button type="primary" onClick={() => router.push('/lectures/new')}>
+          강의 둘러보기
+        </Button>
+      </div>
+
+      {/* 진행 중인 강의 */}
+      {lectures.filter(l => l.status === 'live').length > 0 && (
+        <>
+          <Title level={3}>🔴 진행 중인 강의</Title>
+          <Row gutter={[16, 16]} className="mb-8">
+            {lectures.filter(l => l.status === 'live').map(lecture => (
+              <Col key={lecture.id} xs={24} sm={12} md={8}>
+                <Card
+                  hoverable
+                  className="h-full shadow-lg border-0 rounded-xl overflow-hidden transition-transform hover:scale-105"
+                  cover={
+                    <div className="bg-gradient-to-br from-red-500 to-pink-600 h-32 flex items-center justify-center relative">
+                      <VideoCameraOutlined className="text-4xl text-white opacity-80" />
+                      <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                        LIVE
+                      </div>
+                    </div>
+                  }
+                  actions={[
+                    <Button 
+                      key="join" 
+                      type="primary"
+                      icon={<PlayCircleOutlined />}
+                      onClick={() => router.push(`/lectures/${lecture.id}`)}
+                      className="w-full mx-3 shadow-sm"
+                      size="large"
+                    >
+                      지금 참여하기
+                    </Button>
+                  ]}
+                >
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <Title level={5} className="line-clamp-2 mb-2 text-gray-900">
+                        {lecture.title}
+                      </Title>
+                      <Badge status="processing" text="실시간" />
+                    </div>
+                    
+                    <Text className="text-gray-600 text-sm line-clamp-2 block">
+                      {lecture.description}
+                    </Text>
+                    
+                    <div className="pt-2 border-t border-gray-100">
+                      <Text className="text-red-600 font-medium text-sm">
+                        참가자: {lecture.participant_count}명 실시간 참여 중
+                      </Text>
+                    </div>
+                  </div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+          <Divider />
+        </>
+      )}
+
+      {/* 전체 강의 목록 */}
+      <Title level={3}>📚 수강 가능한 강의</Title>
+      {lecturesLoading ? (
+        <div className="flex justify-center py-8">
+          <Spin size="large" />
+        </div>
+      ) : lectures.length === 0 ? (
+        <Empty
+          description="수강 가능한 강의가 없습니다."
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        >
+          <Button type="primary" onClick={() => router.push('/lectures/new')}>
+            강의 찾아보기
+          </Button>
+        </Empty>
+      ) : (
+        <Row gutter={[16, 16]}>
+          {lectures.map(lecture => (
+            <Col key={lecture.id} xs={24} sm={12} md={8}>
+              <Card
+                hoverable
+                className="h-full shadow-lg border-0 rounded-xl overflow-hidden transition-transform hover:scale-105"
+                cover={
+                  <div className="bg-gradient-to-br from-blue-500 to-indigo-600 h-32 flex items-center justify-center relative">
+                    <VideoCameraOutlined className="text-4xl text-white opacity-80" />
+                    {lecture.status === 'live' && (
+                      <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                        LIVE
+                      </div>
+                    )}
+                  </div>
+                }
+                actions={[
+                  <Button 
+                    key="join" 
+                    type={lecture.status === 'live' ? 'primary' : 'default'}
+                    icon={<PlayCircleOutlined />}
+                    disabled={lecture.status === 'ended'}
+                    onClick={() => router.push(`/lectures/${lecture.id}`)}
+                    className="w-full mx-3 shadow-sm"
+                    size="large"
+                  >
+                    {lecture.status === 'live' ? '참여하기' : 
+                     lecture.status === 'scheduled' ? '대기실 입장' : '다시보기'}
+                  </Button>
+                ]}
+              >
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <Title level={5} className="line-clamp-2 mb-2 text-gray-900">
+                      {lecture.title}
+                    </Title>
+                    <Badge status={getLectureStatusColor(lecture.status)} text={lecture.status} />
+                  </div>
+                  
+                  <Text className="text-gray-600 text-sm line-clamp-2 block">
+                    {lecture.description}
+                  </Text>
+                  
+                  <div className="pt-2 border-t border-gray-100">
+                    <div className="flex justify-between text-xs text-gray-500 mb-2">
+                      <span>시작: {formatDate(lecture.scheduled_start)}</span>
+                    </div>
+                    <Text className="text-blue-600 font-medium text-sm">
+                      참가자: {lecture.participant_count}명
+                    </Text>
+                  </div>
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
+    </div>
+  );
+
+  if (authLoading) {
+    return (
+      <MainLayout>
+        <div className="flex justify-center items-center min-h-screen">
+          <Spin size="large" />
+        </div>
+      </MainLayout>
     );
-  };
-  
+  }
+
+  if (!isLoggedIn) {
+    return null;
+  }
+
   return (
     <MainLayout>
-      <div>
-        <div className="flex justify-between items-center mb-6">
-          <Title level={2}>내 학습 영상</Title>
-          <Button type="primary" onClick={() => router.push('/video')}>
-            새 영상 추가
-          </Button>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* {error && (
+            <Alert 
+              message="오류 발생" 
+              description={error} 
+              type="error" 
+              showIcon 
+              className="mb-6"
+              closable
+              onClose={() => setError('')}
+            />
+          )} */}
+          
+          {user?.role === 'instructor' ? <InstructorDashboard /> : <StudentDashboard />}
         </div>
-        
-        {content()}
       </div>
     </MainLayout>
   );

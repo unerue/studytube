@@ -1,7 +1,10 @@
 import "../styles/globals.css";
+import "antd/dist/reset.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/context/AuthContext";
+import { LanguageProvider } from "@/lib/context/LanguageContext";
+import Navbar from "@/components/layout/Navbar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,7 +21,14 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={inter.className}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <LanguageProvider>
+            <div className="min-h-screen bg-gray-50">
+              <Navbar />
+              <main>{children}</main>
+            </div>
+          </LanguageProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -18,7 +18,7 @@ class VideoResponse(VideoBase):
     created_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class VideoDetail(VideoResponse):
     transcript: Optional[str] = None 

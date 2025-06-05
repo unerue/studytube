@@ -1,80 +1,42 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, Form, Input, Button, DatePicker, Upload, message, Select } from 'antd';
-import { UploadOutlined, FileOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import Link from 'next/link';
+import { Card, Button, Typography, Form, Input, Select, Switch, message, DatePicker } from 'antd';
+import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
-import type { UploadProps } from 'antd';
+import dayjs from 'dayjs';
+import { lectureService } from '@/lib/api/lectures';
+import { LectureCreate } from '@/types/lecture';
 
-const { TextArea } = Input;
+const { Title, Text } = Typography;
 const { Option } = Select;
 
-interface LectureForm {
-  title: string;
-  description: string;
-  scheduled_start: Date;
-  ppt_file?: File;
-}
-
 export default function CreateLecturePage() {
+  const router = useRouter();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [pptFile, setPptFile] = useState<File | null>(null);
-  const router = useRouter();
 
-  const uploadProps: UploadProps = {
-    name: 'ppt',
-    multiple: false,
-    accept: '.ppt,.pptx,.pdf',
-    beforeUpload: (file) => {
-      const isValidType = file.type === 'application/vnd.ms-powerpoint' || 
-                         file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-                         file.type === 'application/pdf';
-      if (!isValidType) {
-        message.error('PPT 또는 PDF 파일만 업로드 가능합니다!');
-        return false;
-      }
-      const isLt50M = file.size / 1024 / 1024 < 50;
-      if (!isLt50M) {
-        message.error('파일 크기는 50MB 이하여야 합니다!');
-        return false;
-      }
-      setPptFile(file);
-      return false; // 자동 업로드 방지
-    },
-    onRemove: () => {
-      setPptFile(null);
-    },
-    fileList: pptFile ? [
-      {
-        uid: '1',
-        name: pptFile.name,
-        status: 'done',
-      }
-    ] : [],
-  };
-
-  const onFinish = async (values: any) => {
-    setLoading(true);
-    
+  const handleSubmit = async (values: any) => {
     try {
-      // 실제로는 API 호출
-      const lectureData = {
-        ...values,
-        ppt_file: pptFile,
-        instructor_id: 1 // 현재 사용자 ID
+      setLoading(true);
+      
+      // API 호출을 위한 데이터 변환
+      const lectureData: LectureCreate = {
+        title: values.title,
+        description: values.description,
+        max_participants: values.maxParticipants,
+        scheduled_start: values.scheduledStart ? values.scheduledStart.toISOString() : new Date().toISOString()
       };
       
-      console.log('Creating lecture:', lectureData);
+      console.log('Creating lecture with data:', lectureData);
       
-      // 임시 지연
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // 실제 API 호출
+      const createdLecture = await lectureService.createLecture(lectureData);
       
       message.success('강의가 성공적으로 생성되었습니다!');
-      router.push('/lectures');
-      
+      router.push('/lectures/new');
     } catch (error) {
+      console.error('Failed to create lecture:', error);
       message.error('강의 생성에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
@@ -82,164 +44,179 @@ export default function CreateLecturePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-6">
+    <div className="min-h-[calc(100vh-4rem)] bg-gray-50 p-6">
+      <div className="max-w-4xl mx-auto">
         {/* 헤더 */}
-        <div className="mb-8">
-          <Link href="/lectures" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4">
-            <ArrowLeftOutlined />
-            <span>강의 목록으로 돌아가기</span>
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">새 강의 만들기</h1>
-          <p className="text-gray-600">실시간 강의를 생성하고 학생들과 소통해보세요</p>
+        <div className="mb-6">
+          <Button 
+            icon={<ArrowLeftOutlined />} 
+            onClick={() => router.back()}
+            className="mb-4"
+          >
+            뒤로 가기
+          </Button>
+          <Title level={2} className="text-gray-900">
+            새 강의 생성
+          </Title>
+          <Text className="text-gray-600">
+            실시간 강의를 위한 기본 정보를 입력해주세요
+          </Text>
         </div>
 
-        <Card className="shadow-lg border-0">
+        {/* 강의 생성 폼 */}
+        <Card className="shadow-lg">
           <Form
             form={form}
             layout="vertical"
-            onFinish={onFinish}
-            className="space-y-6"
+            onFinish={handleSubmit}
+            initialValues={{
+              language: 'ko',
+              allowRecording: true,
+              maxParticipants: 100,
+              scheduledStart: dayjs().add(1, 'hour'), // 기본값: 1시간 후
+            }}
           >
-            {/* 기본 정보 */}
-            <div className="border-b pb-6">
-              <h2 className="text-xl font-semibold mb-4">기본 정보</h2>
-              
-              <Form.Item
-                name="title"
-                label="강의 제목"
-                rules={[
-                  { required: true, message: '강의 제목을 입력해주세요!' },
-                  { min: 5, message: '제목은 최소 5자 이상이어야 합니다!' }
-                ]}
-              >
-                <Input 
-                  size="large" 
-                  placeholder="예: 차량용 신호등 인식 AI 개발"
-                  className="rounded-lg"
-                />
-              </Form.Item>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2">
+                <Form.Item
+                  label="강의 제목"
+                  name="title"
+                  rules={[{ required: true, message: '강의 제목을 입력해주세요' }]}
+                >
+                  <Input placeholder="예: AI 딥러닝 기초 강의" size="large" />
+                </Form.Item>
+              </div>
+
+              <div className="md:col-span-2">
+                <Form.Item
+                  label="강의 설명"
+                  name="description"
+                  rules={[{ required: true, message: '강의 설명을 입력해주세요' }]}
+                >
+                  <Input.TextArea 
+                    placeholder="강의 내용과 목표를 간단히 설명해주세요"
+                    rows={4}
+                  />
+                </Form.Item>
+              </div>
 
               <Form.Item
-                name="description"
-                label="강의 설명"
-                rules={[
-                  { required: true, message: '강의 설명을 입력해주세요!' },
-                  { min: 10, message: '설명은 최소 10자 이상이어야 합니다!' }
-                ]}
-              >
-                <TextArea 
-                  rows={4} 
-                  placeholder="강의 내용에 대해 자세히 설명해주세요..."
-                  className="rounded-lg"
-                />
-              </Form.Item>
-            </div>
-
-            {/* 일정 설정 */}
-            <div className="border-b pb-6">
-              <h2 className="text-xl font-semibold mb-4">일정 설정</h2>
-              
-              <Form.Item
-                name="scheduled_start"
                 label="강의 시작 시간"
-                rules={[{ required: true, message: '강의 시작 시간을 선택해주세요!' }]}
+                name="scheduledStart"
+                rules={[{ required: true, message: '강의 시작 시간을 선택해주세요' }]}
               >
-                <DatePicker
-                  showTime
+                <DatePicker 
+                  showTime 
                   size="large"
-                  format="YYYY-MM-DD HH:mm"
-                  placeholder="날짜와 시간을 선택하세요"
-                  className="w-full rounded-lg"
+                  style={{ width: '100%' }}
+                  placeholder="강의 시작 시간을 선택하세요"
+                  disabledDate={(current) => current && current < dayjs().startOf('day')}
                 />
               </Form.Item>
-            </div>
 
-            {/* PPT 파일 업로드 */}
-            <div className="border-b pb-6">
-              <h2 className="text-xl font-semibold mb-4">강의 자료</h2>
-              
               <Form.Item
-                name="ppt_file"
-                label="PPT 파일 (선택사항)"
-                extra="PowerPoint(.ppt, .pptx) 또는 PDF 파일을 업로드하세요. 최대 50MB"
+                label="주 언어"
+                name="language"
+                rules={[{ required: true, message: '언어를 선택해주세요' }]}
               >
-                <Upload.Dragger {...uploadProps} className="rounded-lg">
-                  <p className="ant-upload-drag-icon">
-                    <FileOutlined className="text-4xl text-blue-500" />
-                  </p>
-                  <p className="ant-upload-text">
-                    클릭하거나 파일을 여기로 드래그하세요
-                  </p>
-                  <p className="ant-upload-hint">
-                    PPT, PPTX, PDF 파일만 지원됩니다
-                  </p>
-                </Upload.Dragger>
-              </Form.Item>
-            </div>
-
-            {/* 고급 설정 */}
-            <div className="pb-6">
-              <h2 className="text-xl font-semibold mb-4">고급 설정</h2>
-              
-              <Form.Item
-                name="default_language"
-                label="기본 언어"
-                initialValue="ko"
-              >
-                <Select size="large" className="w-full">
+                <Select size="large">
                   <Option value="ko">한국어</Option>
                   <Option value="en">English</Option>
-                  <Option value="zh">中文</Option>
                   <Option value="ja">日本語</Option>
+                  <Option value="zh">中文</Option>
                 </Select>
               </Form.Item>
 
               <Form.Item
-                name="max_participants"
                 label="최대 참여자 수"
-                initialValue={100}
+                name="maxParticipants"
+                rules={[{ required: true, message: '최대 참여자 수를 입력해주세요' }]}
               >
-                <Input 
-                  type="number" 
-                  size="large" 
-                  min={1} 
-                  max={1000}
-                  placeholder="100"
-                  className="rounded-lg"
-                />
+                <Select size="large">
+                  <Option value={25}>25명</Option>
+                  <Option value={50}>50명</Option>
+                  <Option value={100}>100명</Option>
+                  <Option value={200}>200명</Option>
+                  <Option value={500}>500명</Option>
+                </Select>
               </Form.Item>
+
+              <div className="md:col-span-2">
+                <div className="space-y-4">
+                  <Form.Item
+                    name="allowRecording"
+                    valuePropName="checked"
+                  >
+                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <Text className="font-medium">강의 녹화 허용</Text>
+                        <div>
+                          <Text className="text-gray-500 text-sm">
+                            강의를 자동으로 녹화하여 나중에 다시 볼 수 있습니다
+                          </Text>
+                        </div>
+                      </div>
+                      <Switch />
+                    </div>
+                  </Form.Item>
+
+                  <Form.Item
+                    name="allowChat"
+                    valuePropName="checked"
+                    initialValue={true}
+                  >
+                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <Text className="font-medium">채팅 허용</Text>
+                        <div>
+                          <Text className="text-gray-500 text-sm">
+                            참여자들이 실시간으로 채팅할 수 있습니다
+                          </Text>
+                        </div>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </Form.Item>
+
+                  <Form.Item
+                    name="allowSubtitles"
+                    valuePropName="checked"
+                    initialValue={true}
+                  >
+                    <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                      <div>
+                        <Text className="font-medium">실시간 자막</Text>
+                        <div>
+                          <Text className="text-gray-500 text-sm">
+                            AI를 통한 실시간 자막 생성 및 번역
+                          </Text>
+                        </div>
+                      </div>
+                      <Switch defaultChecked />
+                    </div>
+                  </Form.Item>
+                </div>
+              </div>
             </div>
 
-            {/* 액션 버튼 */}
-            <div className="flex justify-end gap-4 pt-6 border-t">
-              <Link href="/lectures">
-                <Button size="large" className="px-8">
-                  취소
-                </Button>
-              </Link>
+            <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
+              <Button 
+                size="large"
+                onClick={() => router.back()}
+              >
+                취소
+              </Button>
               <Button 
                 type="primary" 
-                size="large" 
-                htmlType="submit" 
+                size="large"
+                icon={<PlusOutlined />}
+                htmlType="submit"
                 loading={loading}
-                className="px-8"
               >
-                강의 생성하기
+                강의 생성
               </Button>
             </div>
           </Form>
-        </Card>
-
-        {/* 도움말 */}
-        <Card className="mt-6 bg-blue-50 border-blue-200">
-          <h3 className="font-semibold text-blue-900 mb-2">💡 강의 생성 팁</h3>
-          <ul className="text-blue-800 text-sm space-y-1">
-            <li>• 강의 제목은 구체적이고 명확하게 작성하세요</li>
-            <li>• PPT 파일을 미리 업로드하면 강의 중 원활한 화면 공유가 가능합니다</li>
-            <li>• 강의 시작 10분 전부터 학생들이 대기실에 입장할 수 있습니다</li>
-            <li>• 실시간 번역 기능으로 다국적 학생들도 참여할 수 있습니다</li>
-          </ul>
         </Card>
       </div>
     </div>

@@ -2,10 +2,16 @@ from typing import Optional, List
 from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship
 from pydantic import EmailStr
+from enum import Enum
+
+class UserRole(str, Enum):
+    STUDENT = "student"
+    INSTRUCTOR = "instructor"
 
 class UserBase(SQLModel):
     username: str = Field(index=True)
     email: str = Field(unique=True, index=True)
+    role: UserRole = Field(default=UserRole.STUDENT)
 
 class User(UserBase, table=True):
     __tablename__ = "users"
@@ -17,6 +23,8 @@ class User(UserBase, table=True):
     # 관계 설정 - 실제 모델은 나중에 임포트됨
     videos: List["Video"] = Relationship(back_populates="user")
     qa_pairs: List["QAPair"] = Relationship(back_populates="user")
+    lectures: List["Lecture"] = Relationship(back_populates="instructor")
+    chat_messages: List["ChatMessage"] = Relationship(back_populates="user")
 
 class UserCreate(UserBase):
     password: str

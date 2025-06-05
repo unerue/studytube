@@ -1,20 +1,22 @@
-from sqlmodel import create_engine, Session, SQLModel
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
 
-# SQLite 연결 URL
-DATABASE_URL = "sqlite:///./studytube.db"
+# SQLite 연결 URL (async 버전)
+DATABASE_URL = "sqlite+aiosqlite:///./studytube.db"
 
-# 엔진 생성
-engine = create_engine(
+# 비동기 엔진 생성
+engine = create_async_engine(
     DATABASE_URL, 
-    connect_args={"check_same_thread": False},
     echo=True  # SQL 쿼리 로깅 (개발 시 유용)
 )
 
-# DB 종속성 주입 함수
-def get_db():
-    with Session(engine) as session:
+# DB 종속성 주입 함수 (비동기)
+async def get_db():
+    async with AsyncSession(engine) as session:
         yield session
 
-# 데이터베이스 초기화 함수
-def init_db():
-    SQLModel.metadata.create_all(engine) 
+# 데이터베이스 초기화 함수 (비동기)
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all) 

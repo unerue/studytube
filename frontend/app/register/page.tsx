@@ -4,8 +4,8 @@ import RegisterForm from '../../components/auth/RegisterForm';
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-100 to-white flex flex-col items-center justify-center p-4">
-      <h1 className="text-3xl font-bold mb-8 text-blue-700">StudyTube</h1>
+    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-blue-100 to-white flex flex-col items-center justify-center p-4">
+      <h1 className="text-3xl font-bold mb-8 text-blue-700">회원가입</h1>
       
       <RegisterForm />
       
