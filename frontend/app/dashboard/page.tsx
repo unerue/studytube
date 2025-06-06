@@ -6,7 +6,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import { useAuth } from '@/lib/context/AuthContext';
 import { Card, Row, Col, Typography, Empty, Button, Spin, Alert, Badge, Tooltip, Modal, message, Statistic, Divider } from 'antd';
 import { getAuthHeaders, DEFAULT_FETCH_OPTIONS } from '@/lib/api/config';
-import { PlayCircleOutlined, PlusOutlined, TeamOutlined, VideoCameraOutlined, BookOutlined, DesktopOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, PlusOutlined, TeamOutlined, VideoCameraOutlined, BookOutlined, DesktopOutlined, CalendarOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -120,40 +120,45 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* 강사 통계 */}
-      <Row gutter={16} className="mb-6">
+      {/* 강사 통계 - 개선된 디자인 */}
+      <Row gutter={16} className="mb-8">
         <Col span={6}>
-          <Card>
-            <Statistic title="총 강의 수" value={lectures.length} prefix={<BookOutlined />} />
+          <Card className="text-center border-0 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 hover:from-blue-100 hover:to-blue-300 transition-all duration-300 hover:shadow-lg rounded-xl overflow-hidden">
+            <Statistic 
+              title={<span className="text-blue-700 font-semibold">총 강의 수</span>} 
+              value={lectures.length} 
+              prefix={<BookOutlined className="text-blue-600" />} 
+              valueStyle={{ color: '#1d4ed8', fontSize: '24px', fontWeight: 'bold' }}
+            />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
+          <Card className="text-center border-0 bg-gradient-to-br from-emerald-50 via-emerald-100 to-emerald-200 hover:from-emerald-100 hover:to-emerald-300 transition-all duration-300 hover:shadow-lg rounded-xl overflow-hidden">
             <Statistic 
-              title="진행 중 강의" 
+              title={<span className="text-emerald-700 font-semibold">진행 중 강의</span>} 
               value={lectures.filter(l => l.status === 'live').length} 
-              prefix={<VideoCameraOutlined />}
-              valueStyle={{ color: '#f5222d' }}
+              prefix={<VideoCameraOutlined className="text-emerald-600" />}
+              valueStyle={{ color: '#059669', fontSize: '24px', fontWeight: 'bold' }}
             />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
+          <Card className="text-center border-0 bg-gradient-to-br from-purple-50 via-purple-100 to-purple-200 hover:from-purple-100 hover:to-purple-300 transition-all duration-300 hover:shadow-lg rounded-xl overflow-hidden">
             <Statistic 
-              title="예정된 강의" 
+              title={<span className="text-purple-700 font-semibold">예정된 강의</span>} 
               value={lectures.filter(l => l.status === 'scheduled').length} 
-              prefix={<DesktopOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              prefix={<DesktopOutlined className="text-purple-600" />}
+              valueStyle={{ color: '#7c3aed', fontSize: '24px', fontWeight: 'bold' }}
             />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
+          <Card className="text-center border-0 bg-gradient-to-br from-orange-50 via-orange-100 to-orange-200 hover:from-orange-100 hover:to-orange-300 transition-all duration-300 hover:shadow-lg rounded-xl overflow-hidden">
             <Statistic 
-              title="총 참가자" 
+              title={<span className="text-orange-700 font-semibold">총 참가자</span>} 
               value={lectures.reduce((sum, l) => sum + l.participant_count, 0)} 
-              prefix={<TeamOutlined />}
-              valueStyle={{ color: '#52c41a' }}
+              prefix={<TeamOutlined className="text-orange-600" />}
+              valueStyle={{ color: '#ea580c', fontSize: '24px', fontWeight: 'bold' }}
             />
           </Card>
         </Col>
@@ -180,16 +185,34 @@ export default function DashboardPage() {
             <Col key={lecture.id} xs={24} sm={12} md={8}>
               <Card
                 hoverable
-                className="h-full shadow-lg border-0 rounded-xl overflow-hidden transition-transform hover:scale-105"
+                className="h-full shadow-md border-0 rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl group"
                 cover={
-                  <div className="bg-gradient-to-br from-blue-500 to-indigo-600 h-32 flex items-center justify-center relative">
-                    <VideoCameraOutlined className="text-4xl text-white opacity-80" />
+                  <div className={`h-36 flex items-center justify-center relative overflow-hidden ${
+                    lecture.status === 'live' 
+                      ? 'bg-gradient-to-br from-red-500 via-pink-500 to-rose-600' 
+                      : lecture.status === 'scheduled'
+                      ? 'bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600'
+                      : 'bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600'
+                  }`}>
+                    <VideoCameraOutlined className="text-5xl text-white opacity-90 group-hover:scale-110 transition-transform duration-300" />
                     {lecture.status === 'live' && (
-                      <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-                        LIVE
+                      <>
+                        <div className="absolute top-4 right-4 flex items-center gap-2 bg-red-600/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg">
+                          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                          LIVE
+                        </div>
+                        {/* 라이브 효과 애니메이션 */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/10 animate-pulse"></div>
+                      </>
+                    )}
+                    {lecture.status === 'scheduled' && (
+                      <div className="absolute top-4 right-4 flex items-center gap-2 bg-blue-600/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg">
+                        <CalendarOutlined className="text-sm" />
+                        예정
                       </div>
                     )}
+                    {/* 미묘한 패턴 효과 */}
+                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_50%,white_20%,transparent_20%),radial-gradient(circle_at_80%_50%,white_20%,transparent_20%)]"></div>
                   </div>
                 }
                 actions={[
@@ -198,32 +221,64 @@ export default function DashboardPage() {
                     type="primary"
                     icon={<PlayCircleOutlined />}
                     onClick={() => router.push(`/lectures/${lecture.id}`)}
-                    className="w-full mx-3 shadow-sm"
+                    className="w-full mx-4 shadow-md hover:shadow-lg transition-shadow duration-300 font-semibold"
                     size="large"
+                    style={{ 
+                      background: lecture.status === 'live' 
+                        ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
+                        : 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                      border: 'none'
+                    }}
                   >
-                    강의실 입장
+                    {lecture.status === 'live' ? '🔴 강의실 입장' : '📚 강의실 입장'}
                   </Button>
                 ]}
               >
-                <div className="space-y-3">
+                <div className="space-y-4 p-2">
                   <div className="flex justify-between items-start">
-                    <Title level={5} className="line-clamp-2 mb-2 text-gray-900">
+                    <Title level={5} className="line-clamp-2 mb-2 text-gray-900 group-hover:text-blue-700 transition-colors duration-300">
                       {lecture.title}
                     </Title>
-                    <Badge status={getLectureStatusColor(lecture.status)} text={lecture.status} />
+                    <Badge 
+                      status={getLectureStatusColor(lecture.status)} 
+                      text={
+                        <span className="font-medium text-xs uppercase tracking-wide">
+                          {lecture.status === 'live' ? '진행중' : lecture.status === 'scheduled' ? '예정됨' : '종료됨'}
+                        </span>
+                      } 
+                    />
                   </div>
                   
-                  <Text className="text-gray-600 text-sm line-clamp-2 block">
+                  <Text className="text-gray-600 text-sm line-clamp-3 leading-relaxed block">
                     {lecture.description}
                   </Text>
                   
-                  <div className="pt-2 border-t border-gray-100">
-                    <div className="flex justify-between text-xs text-gray-500 mb-2">
-                      <span>시작: {formatDate(lecture.scheduled_start)}</span>
+                  <div className="pt-3 border-t border-gray-100">
+                    <div className="flex justify-between text-xs text-gray-500 mb-3">
+                      <span className="flex items-center gap-1">
+                        <CalendarOutlined />
+                        {formatDate(lecture.scheduled_start)}
+                      </span>
                     </div>
-                    <Text className="text-blue-600 font-medium text-sm">
-                      참가자: {lecture.participant_count}명
-                    </Text>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          lecture.status === 'live' ? 'bg-red-500 animate-pulse' : 
+                          lecture.status === 'scheduled' ? 'bg-blue-500' : 'bg-gray-400'
+                        }`}></div>
+                        <Text className={`font-semibold text-sm ${
+                          lecture.status === 'live' ? 'text-red-600' : 'text-blue-600'
+                        }`}>
+                          참가자: {lecture.participant_count}명
+                        </Text>
+                      </div>
+                      <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
+                        <TeamOutlined className="text-xs text-gray-500" />
+                        <Text className="text-xs text-gray-600 font-medium">
+                          {lecture.participant_count > 0 ? '활성' : '대기'}
+                        </Text>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -247,57 +302,70 @@ export default function DashboardPage() {
       {/* 진행 중인 강의 */}
       {lectures.filter(l => l.status === 'live').length > 0 && (
         <>
-          <Title level={3}>🔴 진행 중인 강의</Title>
-          <Row gutter={[16, 16]} className="mb-8">
-            {lectures.filter(l => l.status === 'live').map(lecture => (
-              <Col key={lecture.id} xs={24} sm={12} md={8}>
-                <Card
-                  hoverable
-                  className="h-full shadow-lg border-0 rounded-xl overflow-hidden transition-transform hover:scale-105"
-                  cover={
-                    <div className="bg-gradient-to-br from-red-500 to-pink-600 h-32 flex items-center justify-center relative">
-                      <VideoCameraOutlined className="text-4xl text-white opacity-80" />
-                      <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-600 text-white px-2 py-1 rounded-full text-xs font-semibold">
-                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-                        LIVE
+          <div className="bg-gradient-to-r from-red-500 via-pink-500 to-rose-600 rounded-2xl p-8 mb-8 text-white shadow-xl">
+            <Title level={3} className="text-white mb-4 flex items-center gap-2">
+              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+              🔴 진행 중인 강의
+            </Title>
+            <Text className="text-red-100 mb-6 block text-lg">
+              지금 실시간으로 진행되고 있는 강의에 바로 참여하세요!
+            </Text>
+            <Row gutter={[16, 16]}>
+              {lectures.filter(l => l.status === 'live').map(lecture => (
+                <Col key={lecture.id} xs={24} sm={12} md={8}>
+                  <Card
+                    className="bg-white/15 backdrop-blur-sm border-white/30 text-white hover:bg-white/20 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
+                    actions={[
+                      <Button 
+                        key="join" 
+                        type="primary"
+                        icon={<PlayCircleOutlined />}
+                        onClick={() => router.push(`/lectures/${lecture.id}`)}
+                        className="w-full mx-3 font-semibold"
+                        size="large"
+                        danger
+                        style={{ 
+                          background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                          border: 'none',
+                          boxShadow: '0 4px 15px rgba(220, 38, 38, 0.4)'
+                        }}
+                      >
+                        🚀 지금 참여하기
+                      </Button>
+                    ]}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-start">
+                        <Title level={5} className="text-white mb-2 line-clamp-2">
+                          {lecture.title}
+                        </Title>
+                        <div className="flex items-center gap-1 bg-red-600/80 text-white px-2 py-1 rounded-full text-xs font-bold">
+                          <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                          LIVE
+                        </div>
+                      </div>
+                      
+                      <Text className="text-red-100 text-sm line-clamp-2 block leading-relaxed">
+                        {lecture.description}
+                      </Text>
+                      
+                      <div className="pt-2 border-t border-white/20">
+                        <div className="flex items-center justify-between">
+                          <Text className="text-red-100 text-sm font-medium">
+                            👥 {lecture.participant_count}명 실시간 참여 중
+                          </Text>
+                          <div className="flex items-center gap-1 text-xs text-red-200">
+                            <CalendarOutlined />
+                            진행중
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  }
-                  actions={[
-                    <Button 
-                      key="join" 
-                      type="primary"
-                      icon={<PlayCircleOutlined />}
-                      onClick={() => router.push(`/lectures/${lecture.id}`)}
-                      className="w-full mx-3 shadow-sm"
-                      size="large"
-                    >
-                      지금 참여하기
-                    </Button>
-                  ]}
-                >
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-start">
-                      <Title level={5} className="line-clamp-2 mb-2 text-gray-900">
-                        {lecture.title}
-                      </Title>
-                      <Badge status="processing" text="실시간" />
-                    </div>
-                    
-                    <Text className="text-gray-600 text-sm line-clamp-2 block">
-                      {lecture.description}
-                    </Text>
-                    
-                    <div className="pt-2 border-t border-gray-100">
-                      <Text className="text-red-600 font-medium text-sm">
-                        참가자: {lecture.participant_count}명 실시간 참여 중
-                      </Text>
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-            ))}
-          </Row>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </div>
           <Divider />
         </>
       )}
@@ -323,16 +391,34 @@ export default function DashboardPage() {
             <Col key={lecture.id} xs={24} sm={12} md={8}>
               <Card
                 hoverable
-                className="h-full shadow-lg border-0 rounded-xl overflow-hidden transition-transform hover:scale-105"
+                className="h-full shadow-md border-0 rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl group"
                 cover={
-                  <div className="bg-gradient-to-br from-blue-500 to-indigo-600 h-32 flex items-center justify-center relative">
-                    <VideoCameraOutlined className="text-4xl text-white opacity-80" />
+                  <div className={`h-36 flex items-center justify-center relative overflow-hidden ${
+                    lecture.status === 'live' 
+                      ? 'bg-gradient-to-br from-red-500 via-pink-500 to-rose-600' 
+                      : lecture.status === 'scheduled'
+                      ? 'bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600'
+                      : 'bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600'
+                  }`}>
+                    <VideoCameraOutlined className="text-5xl text-white opacity-90 group-hover:scale-110 transition-transform duration-300" />
                     {lecture.status === 'live' && (
-                      <div className="absolute top-3 right-3 flex items-center gap-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-                        <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
-                        LIVE
+                      <>
+                        <div className="absolute top-4 right-4 flex items-center gap-2 bg-red-600/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg">
+                          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                          LIVE
+                        </div>
+                        {/* 라이브 효과 애니메이션 */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-transparent via-transparent to-white/10 animate-pulse"></div>
+                      </>
+                    )}
+                    {lecture.status === 'scheduled' && (
+                      <div className="absolute top-4 right-4 flex items-center gap-2 bg-blue-600/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-sm font-bold shadow-lg">
+                        <CalendarOutlined className="text-sm" />
+                        예정
                       </div>
                     )}
+                    {/* 미묘한 패턴 효과 */}
+                    <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_20%_50%,white_20%,transparent_20%),radial-gradient(circle_at_80%_50%,white_20%,transparent_20%)]"></div>
                   </div>
                 }
                 actions={[
@@ -342,33 +428,65 @@ export default function DashboardPage() {
                     icon={<PlayCircleOutlined />}
                     disabled={lecture.status === 'ended'}
                     onClick={() => router.push(`/lectures/${lecture.id}`)}
-                    className="w-full mx-3 shadow-sm"
+                    className="w-full mx-4 shadow-md hover:shadow-lg transition-shadow duration-300 font-semibold"
                     size="large"
+                    danger={lecture.status === 'live'}
+                    style={lecture.status === 'live' ? { 
+                      background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                      border: 'none'
+                    } : {}}
                   >
-                    {lecture.status === 'live' ? '참여하기' : 
-                     lecture.status === 'scheduled' ? '대기실 입장' : '다시보기'}
+                    {lecture.status === 'live' ? '🔴 지금 참여' : 
+                     lecture.status === 'scheduled' ? '⏰ 대기실 입장' : '📖 다시보기'}
                   </Button>
                 ]}
               >
-                <div className="space-y-3">
+                <div className="space-y-4 p-2">
                   <div className="flex justify-between items-start">
-                    <Title level={5} className="line-clamp-2 mb-2 text-gray-900">
+                    <Title level={5} className="line-clamp-2 mb-2 text-gray-900 group-hover:text-blue-700 transition-colors duration-300">
                       {lecture.title}
                     </Title>
-                    <Badge status={getLectureStatusColor(lecture.status)} text={lecture.status} />
+                    <Badge 
+                      status={getLectureStatusColor(lecture.status)} 
+                      text={
+                        <span className="font-medium text-xs uppercase tracking-wide">
+                          {lecture.status === 'live' ? '진행중' : lecture.status === 'scheduled' ? '예정됨' : '종료됨'}
+                        </span>
+                      } 
+                    />
                   </div>
                   
-                  <Text className="text-gray-600 text-sm line-clamp-2 block">
+                  <Text className="text-gray-600 text-sm line-clamp-3 leading-relaxed block">
                     {lecture.description}
                   </Text>
                   
-                  <div className="pt-2 border-t border-gray-100">
-                    <div className="flex justify-between text-xs text-gray-500 mb-2">
-                      <span>시작: {formatDate(lecture.scheduled_start)}</span>
+                  <div className="pt-3 border-t border-gray-100">
+                    <div className="flex justify-between text-xs text-gray-500 mb-3">
+                      <span className="flex items-center gap-1">
+                        <CalendarOutlined />
+                        {formatDate(lecture.scheduled_start)}
+                      </span>
                     </div>
-                    <Text className="text-blue-600 font-medium text-sm">
-                      참가자: {lecture.participant_count}명
-                    </Text>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          lecture.status === 'live' ? 'bg-red-500 animate-pulse' : 
+                          lecture.status === 'scheduled' ? 'bg-blue-500' : 'bg-gray-400'
+                        }`}></div>
+                        <Text className={`font-semibold text-sm ${
+                          lecture.status === 'live' ? 'text-red-600' : 'text-blue-600'
+                        }`}>
+                          참가자: {lecture.participant_count}명
+                          {lecture.status === 'live' && ' 실시간 참여 중'}
+                        </Text>
+                      </div>
+                      <div className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-full">
+                        <TeamOutlined className="text-xs text-gray-500" />
+                        <Text className="text-xs text-gray-600 font-medium">
+                          {lecture.status === 'live' ? '진행중' : lecture.participant_count > 0 ? '활성' : '대기'}
+                        </Text>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Card>

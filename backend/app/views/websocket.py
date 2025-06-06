@@ -23,6 +23,20 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, lecture_id: int, user_id: int, username: str):
         await websocket.accept()
         
+        # 동일한 사용자의 기존 연결이 있는지 확인하고 제거
+        if lecture_id in self.active_connections:
+            existing_connections = []
+            for existing_ws in list(self.active_connections[lecture_id]):
+                if existing_ws in self.connection_info:
+                    existing_info = self.connection_info[existing_ws]
+                    if existing_info["user_id"] == user_id:
+                        existing_connections.append(existing_ws)
+            
+            # 기존 연결들 정리
+            for existing_ws in existing_connections:
+                print(f"기존 연결 제거: user_id={user_id}, username={username}")
+                self.disconnect(existing_ws)
+        
         if lecture_id not in self.active_connections:
             self.active_connections[lecture_id] = []
         
@@ -50,6 +64,25 @@ class ConnectionManager:
         except:
             self.disconnect(websocket)
 
+    async def send_to_user(self, message: str, user_id: int, lecture_id: int):
+        """특정 사용자에게 메시지 전송"""
+        if lecture_id in self.active_connections:
+            for websocket in self.active_connections[lecture_id]:
+                if websocket in self.connection_info:
+                    info = self.connection_info[websocket]
+                    if info["user_id"] == user_id and info["lecture_id"] == lecture_id:
+                        try:
+                            await websocket.send_text(message)
+                            print(f"메시지 전송 성공 - user_id: {user_id}, lecture_id: {lecture_id}")
+                            return True
+                        except Exception as e:
+                            print(f"메시지 전송 실패 - user_id: {user_id}, error: {e}")
+                            # 연결이 끊어진 경우 정리
+                            self.disconnect(websocket)
+                            return False
+        print(f"사용자를 찾을 수 없음 - user_id: {user_id}, lecture_id: {lecture_id}")
+        return False
+
     async def broadcast_to_lecture(self, message: str, lecture_id: int):
         if lecture_id in self.active_connections:
             disconnected = []
@@ -65,17 +98,26 @@ class ConnectionManager:
                 self.disconnect(conn)
 
     def get_participants(self, lecture_id: int) -> List[Dict]:
-        """특정 강의의 현재 접속 중인 참여자 목록 반환"""
+        """특정 강의의 현재 접속 중인 참여자 목록 반환 (중복 제거)"""
         participants = []
+        seen_user_ids = set()
+        
         if lecture_id in self.active_connections:
             for websocket in self.active_connections[lecture_id]:
                 if websocket in self.connection_info:
                     info = self.connection_info[websocket]
-                    participants.append({
-                        "user_id": info["user_id"],
-                        "username": info["username"],
-                        "is_online": True
-                    })
+                    user_id = info["user_id"]
+                    
+                    # 이미 추가된 사용자는 건너뛰기
+                    if user_id not in seen_user_ids:
+                        participants.append({
+                            "user_id": user_id,
+                            "username": info["username"],
+                            "is_online": True
+                        })
+                        seen_user_ids.add(user_id)
+        
+        print(f"강의 {lecture_id} 참가자 목록 (중복 제거 후): {len(participants)}명")
         return participants
 
 manager = ConnectionManager()
@@ -156,14 +198,15 @@ async def websocket_endpoint(websocket: WebSocket, lecture_id: int, token: str =
         print(f"입장 메시지 브로드캐스트: {join_message}")
         await manager.broadcast_to_lecture(json.dumps(join_message), lecture_id)
         
-        # 현재 참여자 목록 브로드캐스트
+        # 참가자 목록 브로드캐스트
         participants = manager.get_participants(lecture_id)
-        participants_update = {
+        participants_message = {
             "type": "participants_update",
             "participants": participants,
+            "currentUserId": user_id,  # 현재 사용자 ID 추가
             "timestamp": datetime.now().isoformat()
         }
-        await manager.broadcast_to_lecture(json.dumps(participants_update), lecture_id)
+        await manager.broadcast_to_lecture(json.dumps(participants_message), lecture_id)
         
         while True:
             # 클라이언트로부터 메시지 수신
@@ -185,7 +228,7 @@ async def websocket_endpoint(websocket: WebSocket, lecture_id: int, token: str =
                 await manager.broadcast_to_lecture(json.dumps(chat_message), lecture_id)
                 
             elif message_data.get("type") == "screen_share":
-                # 화면 공유 상태 변경
+                # 화면 공유 상태 변경 (기존 방식 유지)
                 is_sharing = message_data.get("is_sharing", False)
                 print(f"화면공유 상태 변경 - username: {username}, is_sharing: {is_sharing}")
                 
@@ -198,6 +241,87 @@ async def websocket_endpoint(websocket: WebSocket, lecture_id: int, token: str =
                 }
                 print(f"화면공유 메시지 브로드캐스트: {screen_share_message}")
                 await manager.broadcast_to_lecture(json.dumps(screen_share_message), lecture_id)
+                
+            # WebRTC Signaling 메시지 처리
+            elif message_data.get("type") == "screen_share_started":
+                # 강사가 화면 공유를 시작했을 때
+                signaling_message = {
+                    "type": "screen_share_started",
+                    "instructorId": user_id,
+                    "username": username,
+                    "lectureId": lecture_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+                await manager.broadcast_to_lecture(json.dumps(signaling_message), lecture_id)
+                
+            elif message_data.get("type") == "screen_share_stopped":
+                # 강사가 화면 공유를 중지했을 때
+                signaling_message = {
+                    "type": "screen_share_stopped",
+                    "instructorId": user_id,
+                    "username": username,
+                    "lectureId": lecture_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+                await manager.broadcast_to_lecture(json.dumps(signaling_message), lecture_id)
+                
+            elif message_data.get("type") == "request_connection":
+                # 학생이 강사에게 연결을 요청할 때
+                target_instructor_id = message_data.get("targetInstructorId")
+                connection_request = {
+                    "type": "request_connection",
+                    "fromStudentId": user_id,
+                    "username": username,
+                    "lectureId": lecture_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+                if target_instructor_id:
+                    await manager.send_to_user(json.dumps(connection_request), target_instructor_id, lecture_id)
+                
+            elif message_data.get("type") == "offer":
+                # WebRTC Offer 전달
+                offer_message = {
+                    "type": "offer",
+                    "offer": message_data.get("offer"),
+                    "fromPeerId": user_id,
+                    "targetPeerId": message_data.get("targetPeerId"),
+                    "lectureId": lecture_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+                # 특정 대상에게만 전달
+                target_peer_id = message_data.get("targetPeerId")
+                if target_peer_id:
+                    await manager.send_to_user(json.dumps(offer_message), target_peer_id, lecture_id)
+                    
+            elif message_data.get("type") == "answer":
+                # WebRTC Answer 전달
+                answer_message = {
+                    "type": "answer",
+                    "answer": message_data.get("answer"),
+                    "fromPeerId": user_id,
+                    "targetPeerId": message_data.get("targetPeerId"),
+                    "lectureId": lecture_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+                # 특정 대상에게만 전달
+                target_peer_id = message_data.get("targetPeerId")
+                if target_peer_id:
+                    await manager.send_to_user(json.dumps(answer_message), target_peer_id, lecture_id)
+                    
+            elif message_data.get("type") == "ice-candidate":
+                # ICE Candidate 전달
+                candidate_message = {
+                    "type": "ice-candidate",
+                    "candidate": message_data.get("candidate"),
+                    "fromPeerId": user_id,
+                    "targetPeerId": message_data.get("targetPeerId"),
+                    "lectureId": lecture_id,
+                    "timestamp": datetime.now().isoformat()
+                }
+                # 특정 대상에게만 전달
+                target_peer_id = message_data.get("targetPeerId")
+                if target_peer_id:
+                    await manager.send_to_user(json.dumps(candidate_message), target_peer_id, lecture_id)
     
     except WebSocketDisconnect:
         manager.disconnect(websocket)

@@ -5,184 +5,181 @@ import { Button, Typography, message } from 'antd';
 import { 
   DesktopOutlined, 
   StopOutlined,
-  FileImageOutlined,
-  VideoCameraOutlined
+  VideoCameraOutlined,
+  LoadingOutlined
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
 interface VideoAreaProps {
-  isInstructor: boolean;
+  localStream: MediaStream | null;
+  remoteStreams: Map<string, MediaStream>;
   isScreenSharing: boolean;
-  onStartScreenShare: () => void;
-  onStopScreenShare: () => void;
+  userRole: 'instructor' | 'student';
+  connectionStatus: 'connecting' | 'connected' | 'failed' | 'disconnected';
 }
 
-export function VideoArea({ 
-  isInstructor, 
-  isScreenSharing, 
-  onStartScreenShare, 
-  onStopScreenShare 
+export default function VideoArea({ 
+  localStream,
+  remoteStreams,
+  isScreenSharing,
+  userRole,
+  connectionStatus
 }: VideoAreaProps) {
-  const [currentStream, setCurrentStream] = useState<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
-  // 컴포넌트 언마운트 시 스트림 정리
+  // 로컬 스트림 표시 (강사의 화면 공유 미리보기)
   useEffect(() => {
-    return () => {
-      if (currentStream) {
-        currentStream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [currentStream]);
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
 
-  const handleStartScreenShare = async () => {
-    try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
+  // 원격 스트림 표시 (학생이 받는 강사의 화면)
+  useEffect(() => {
+    const streamEntries = Array.from(remoteStreams.entries());
+    console.log(`[VideoArea-${userRole === 'instructor' ? 'Instructor' : 'Student'}] Remote streams updated:`, {
+      streamCount: remoteStreams.size,
+      peerIds: Array.from(remoteStreams.keys()),
+      streamDetails: streamEntries.map(([peerId, stream]) => ({
+        peerId,
+        streamId: stream.id,
+        totalTracks: stream.getTracks().length,
+        videoTracks: stream.getVideoTracks().length,
+        audioTracks: stream.getAudioTracks().length,
+        tracks: stream.getTracks().map(t => ({
+          id: t.id,
+          kind: t.kind,
+          enabled: t.enabled,
+          readyState: t.readyState,
+          muted: t.muted
+        }))
+      }))
+    });
+    
+    if (remoteVideoRef.current && remoteStreams.size > 0) {
+      // 첫 번째 원격 스트림을 표시 (강사는 한 명이므로)
+      const firstStream = Array.from(remoteStreams.values())[0];
+      if (firstStream) {
+        console.log(`[VideoArea-${userRole === 'instructor' ? 'Instructor' : 'Student'}] Setting remote stream to video element:`, {
+          streamId: firstStream.id,
+          hasVideoTracks: firstStream.getVideoTracks().length > 0,
+          hasAudioTracks: firstStream.getAudioTracks().length > 0,
+          videoElement: remoteVideoRef.current
         });
         
-        // 비디오 엘리먼트에 스트림 연결
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play();
-        }
-
-        setCurrentStream(stream);
-        onStartScreenShare();
+        remoteVideoRef.current.srcObject = firstStream;
         
-        message.success('화면 공유가 시작되었습니다');
-        
-        // 스트림이 종료될 때 처리 (사용자가 직접 중지한 경우)
-        stream.getVideoTracks()[0].onended = () => {
-          handleStopScreenShare();
-          message.info('화면 공유가 종료되었습니다');
+        // 비디오 재생 이벤트 리스너
+        remoteVideoRef.current.onloadedmetadata = () => {
+          console.log(`[VideoArea-${userRole === 'instructor' ? 'Instructor' : 'Student'}] Video metadata loaded`);
         };
-      } else {
-        message.error('이 브라우저는 화면 공유를 지원하지 않습니다');
-      }
-    } catch (error) {
-      console.error('화면 공유 시작 실패:', error);
-      message.error('화면 공유를 시작할 수 없습니다. 권한을 확인해주세요.');
-    }
-  };
-
-  const handleStopScreenShare = () => {
-    if (currentStream) {
-      currentStream.getTracks().forEach(track => track.stop());
-      setCurrentStream(null);
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    
-    onStopScreenShare();
-  };
-
-  // 학생의 경우 화면 공유 상태를 시뮬레이션 (실제로는 WebRTC나 Socket으로 스트림을 받아와야 함)
-  useEffect(() => {
-    if (!isInstructor && isScreenSharing && videoRef.current) {
-      // 실제 구현에서는 여기서 강사의 화면 공유 스트림을 받아옴
-      // 현재는 시연을 위해 mock 비디오 표시
-      const mockVideo = document.createElement('canvas');
-      mockVideo.width = 1920;
-      mockVideo.height = 1080;
-      const ctx = mockVideo.getContext('2d');
-      
-      if (ctx) {
-        // 목업 화면 공유 내용 생성
-        ctx.fillStyle = '#1e3a8a';
-        ctx.fillRect(0, 0, mockVideo.width, mockVideo.height);
-        ctx.fillStyle = 'white';
-        ctx.font = '48px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('강사의 화면 공유 내용', mockVideo.width / 2, mockVideo.height / 2 - 50);
-        ctx.fillText('AI와 머신러닝 강의', mockVideo.width / 2, mockVideo.height / 2 + 50);
         
-        const stream = mockVideo.captureStream();
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        remoteVideoRef.current.onplay = () => {
+          console.log(`[VideoArea-${userRole === 'instructor' ? 'Instructor' : 'Student'}] Video started playing`);
+        };
+        
+        remoteVideoRef.current.onerror = (error) => {
+          console.error(`[VideoArea-${userRole === 'instructor' ? 'Instructor' : 'Student'}] Video error:`, error);
+        };
+        
+        remoteVideoRef.current.play().catch(error => {
+          console.error(`[VideoArea-${userRole === 'instructor' ? 'Instructor' : 'Student'}] Error playing video:`, error);
+        });
       }
+    } else if (remoteVideoRef.current) {
+      // 원격 스트림이 없으면 비디오 엘리먼트 초기화
+      console.log(`[VideoArea-${userRole === 'instructor' ? 'Instructor' : 'Student'}] Clearing remote video element`);
+      remoteVideoRef.current.srcObject = null;
     }
-  }, [isInstructor, isScreenSharing]);
+  }, [remoteStreams, userRole]);
 
-  if (isScreenSharing) {
+  // 화면 공유 중인 경우 (강사가 공유 중이거나 학생이 원격 스트림 수신 중)
+  if ((userRole === 'instructor' && isScreenSharing) || (userRole !== 'instructor' && remoteStreams.size > 0)) {
     return (
       <div className="h-full bg-black flex items-center justify-center relative">
-        {/* 화면 공유 비디오 */}
+        {/* 메인 화면 공유 비디오 */}
         <video
-          ref={videoRef}
+          ref={userRole === 'instructor' ? localVideoRef : remoteVideoRef}
           className="w-full h-full object-contain"
           autoPlay
           playsInline
+          muted={userRole === 'instructor'} // 강사는 자신의 화면이므로 음소거
         />
 
-        {/* 강사용 화면 공유 중지 버튼 */}
-        {isInstructor && (
-          <div className="absolute top-4 right-4 z-10">
-            <Button 
-              type="primary" 
-              danger 
-              icon={<StopOutlined />}
-              onClick={handleStopScreenShare}
-              size="large"
-            >
-              공유 중지
-            </Button>
+        {/* 화면 공유 상태 표시 */}
+        <div className="absolute top-4 left-4 z-10">
+          <div className="bg-red-600 text-white px-3 py-1 rounded-lg text-sm font-medium flex items-center space-x-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+            <span>
+              {userRole === 'instructor' ? '화면 공유 중' : 
+               remoteStreams.size > 0 ? '강사 화면 공유 수신 중' : '대기 중'}
+            </span>
+          </div>
+        </div>
+
+        {/* 연결 품질 정보 */}
+        <div className="absolute bottom-4 left-4 bg-black/50 backdrop-blur-sm rounded-lg p-2 text-white text-xs z-10">
+          <div>품질: HD 1080p</div>
+          <div>연결: WebRTC P2P</div>
+          <div>상태: {connectionStatus}</div>
+          {userRole !== 'instructor' && remoteStreams.size > 0 && (
+            <>
+              <div>원격 스트림: {remoteStreams.size}개</div>
+              <div>지연시간: ~100ms</div>
+            </>
+          )}
+          {userRole === 'instructor' && isScreenSharing && (
+            <div>로컬 화면 공유 중</div>
+          )}
+        </div>
+
+        {/* 로딩 오버레이 */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+            <div className="text-white text-center">
+              <LoadingOutlined className="text-4xl mb-4" />
+              <div>화면 공유를 시작하는 중...</div>
+            </div>
           </div>
         )}
-
-        {/* 화면 공유 상태 표시 */}
-        <div className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-lg text-sm font-medium z-10">
-          🔴 {isInstructor ? '화면 공유 중' : '강사 화면 공유 수신 중'}
-        </div>
       </div>
     );
   }
 
+  // 화면 공유가 시작되지 않은 경우
   return (
     <div className="h-full bg-gray-900 flex items-center justify-center">
       <div className="text-center">
-        {isInstructor ? (
+        {userRole === 'instructor' ? (
           <>
             <VideoCameraOutlined className="text-6xl text-gray-500 mb-6" />
             <Title level={3} className="text-white mb-4">
               화면 공유를 시작하세요
             </Title>
             <Text className="text-gray-400 mb-6 block">
-              PPT, 문서, 브라우저 등을 학생들과 실시간으로 공유할 수 있습니다
+              하단의 화면 공유 버튼을 클릭하여 강의를 시작하세요
             </Text>
-            
-            <div className="space-y-3">
-              <Button 
-                type="primary" 
-                size="large"
-                icon={<DesktopOutlined />}
-                onClick={handleStartScreenShare}
-                className="w-full max-w-xs"
-              >
-                화면 공유 시작
-              </Button>
-              
-              <div className="text-xs text-gray-500 max-w-xs mx-auto">
-                💡 화면 공유 버튼을 클릭하면 공유할 화면이나 애플리케이션을 선택할 수 있습니다
-              </div>
-            </div>
           </>
         ) : (
           <>
-            <VideoCameraOutlined className="text-6xl text-gray-500 mb-6" />
+            <DesktopOutlined className="text-6xl text-gray-500 mb-6" />
             <Title level={3} className="text-white mb-4">
-              강의를 기다리고 있습니다
+              강사의 화면을 기다리는 중...
             </Title>
-            <Text className="text-gray-400">
-              강사가 화면 공유를 시작하면 여기에 실시간으로 표시됩니다
+            <Text className="text-gray-400 mb-6 block">
+              강사가 화면 공유를 시작하면 여기에 표시됩니다
             </Text>
           </>
         )}
+        
+        {/* 연결 상태 표시 */}
+        <div className="bg-black/50 backdrop-blur-sm rounded-lg p-3 text-white text-sm">
+          <div>연결 상태: {connectionStatus}</div>
+          <div>역할: {userRole === 'instructor' ? '강사' : '학생'}</div>
+        </div>
       </div>
     </div>
   );

@@ -92,10 +92,17 @@ export default function LectureRoomPage() {
   // 로딩 중
   if (authLoading || loading) {
     return (
-      <div className="h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <Spin size="large" className="mb-4" />
-          <div>강의실에 입장하고 있습니다...</div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 grid place-items-center p-4">
+        <div className="grid gap-6 text-center text-white max-w-md mx-auto">
+          <div className="grid place-items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-blue-600/20 backdrop-blur-sm grid place-items-center">
+              <Spin size="large" className="text-blue-400" />
+            </div>
+            <div className="grid gap-2">
+              <h2 className="text-xl font-semibold">강의실 준비 중</h2>
+              <p className="text-gray-300">잠시만 기다려주세요...</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -104,14 +111,20 @@ export default function LectureRoomPage() {
   // 에러 발생
   if (error && !lecture) {
     return (
-      <div className="h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="text-red-400 text-6xl mb-4">❌</div>
-          <div className="text-xl mb-2">오류가 발생했습니다</div>
-          <div className="text-gray-400 mb-4">{error}</div>
+      <div className="min-h-screen bg-gradient-to-br from-red-900/20 via-gray-900 to-red-900/20 grid place-items-center p-4">
+        <div className="grid gap-8 text-center max-w-md mx-auto">
+          <div className="grid place-items-center gap-6">
+            <div className="w-24 h-24 rounded-full bg-red-500/20 backdrop-blur-sm grid place-items-center">
+              <span className="text-4xl">❌</span>
+            </div>
+            <div className="grid gap-3 text-white">
+              <h1 className="text-2xl font-bold">오류가 발생했습니다</h1>
+              <p className="text-red-300 font-medium">{error}</p>
+            </div>
+          </div>
           <button 
             onClick={() => router.push('/lectures/new')}
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors"
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
           >
             강의 목록으로 돌아가기
           </button>
@@ -123,16 +136,25 @@ export default function LectureRoomPage() {
   // 강의를 찾을 수 없음
   if (!lecture) {
     return (
-      <div className="h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="text-red-400 text-6xl mb-4">🔍</div>
-          <div className="text-xl mb-2">강의를 찾을 수 없습니다</div>
-          <div className="text-gray-400 mb-4">
-            강의 ID: {lectureId}
+      <div className="min-h-screen bg-gradient-to-br from-yellow-900/20 via-gray-900 to-yellow-900/20 grid place-items-center p-4">
+        <div className="grid gap-8 text-center max-w-md mx-auto">
+          <div className="grid place-items-center gap-6">
+            <div className="w-24 h-24 rounded-full bg-yellow-500/20 backdrop-blur-sm grid place-items-center">
+              <span className="text-4xl">🔍</span>
+            </div>
+            <div className="grid gap-3 text-white">
+              <h1 className="text-2xl font-bold">강의를 찾을 수 없습니다</h1>
+              <div className="grid gap-1">
+                <p className="text-yellow-300">존재하지 않는 강의입니다</p>
+                <code className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
+                  강의 ID: {lectureId}
+                </code>
+              </div>
+            </div>
           </div>
           <button 
             onClick={() => router.push('/lectures/new')}
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors"
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
           >
             강의 목록으로 돌아가기
           </button>
@@ -144,19 +166,31 @@ export default function LectureRoomPage() {
   // 접근 권한 없음
   if (!hasLectureAccess()) {
     return (
-      <div className="h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="text-yellow-400 text-6xl mb-4">🔒</div>
-          <div className="text-xl mb-2">접근 권한이 없습니다</div>
-          <div className="text-gray-400 mb-4">
-            {userRole === 'student' && lecture.status === 'ended' 
-              ? '이미 종료된 강의입니다.'
-              : '이 강의에 참여할 권한이 없습니다.'
-            }
+      <div className="min-h-screen bg-gradient-to-br from-orange-900/20 via-gray-900 to-orange-900/20 grid place-items-center p-4">
+        <div className="grid gap-8 text-center max-w-md mx-auto">
+          <div className="grid place-items-center gap-6">
+            <div className="w-24 h-24 rounded-full bg-orange-500/20 backdrop-blur-sm grid place-items-center">
+              <span className="text-4xl">🔒</span>
+            </div>
+            <div className="grid gap-3 text-white">
+              <h1 className="text-2xl font-bold">접근 권한이 없습니다</h1>
+              <div className="grid gap-2">
+                <p className="text-orange-300 font-medium">
+                  {userRole === 'student' && lecture.status === 'ended' 
+                    ? '이미 종료된 강의입니다.'
+                    : '이 강의에 참여할 권한이 없습니다.'
+                  }
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-400 bg-gray-800/50 rounded-lg p-3">
+                  <div>역할: <span className="text-blue-300">{userRole}</span></div>
+                  <div>상태: <span className="text-green-300">{lecture.status}</span></div>
+                </div>
+              </div>
+            </div>
           </div>
           <button 
             onClick={() => router.push('/lectures/new')}
-            className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg transition-colors"
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
           >
             강의 목록으로 돌아가기
           </button>
@@ -165,13 +199,15 @@ export default function LectureRoomPage() {
     );
   }
 
-  // 강의실 렌더링
+  // 강의실 렌더링 - MainLayout 없이 전체 화면 사용
   return (
-    <LiveLectureRoom
-      lectureId={lecture.id.toString()}
-      lectureTitle={lecture.title}
-      userRole={userRole}
-      participantCount={lecture.participant_count}
-    />
+    <div className="h-screen w-screen overflow-hidden">
+      <LiveLectureRoom
+        lectureId={lecture.id.toString()}
+        lectureTitle={lecture.title}
+        userRole={userRole}
+        participantCount={lecture.participant_count}
+      />
+    </div>
   );
 } 
