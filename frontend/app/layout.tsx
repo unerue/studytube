@@ -1,10 +1,11 @@
-import "../styles/globals.css";
+import "./globals.css";
 import "antd/dist/reset.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/context/AuthContext";
+import { AntdRegistry } from '@ant-design/nextjs-registry';
 import { LanguageProvider } from "@/lib/context/LanguageContext";
-import Navbar from "@/components/layout/Navbar";
+import ConditionalNavbar from "@/components/layout/ConditionalNavbar";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,14 +22,16 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={inter.className}>
+      <AntdRegistry>
         <AuthProvider>
           <LanguageProvider>
             <div className="min-h-screen bg-gray-50">
-              <Navbar />
+              <ConditionalNavbar />
               <main>{children}</main>
             </div>
           </LanguageProvider>
         </AuthProvider>
+        </AntdRegistry>
       </body>
     </html>
   );

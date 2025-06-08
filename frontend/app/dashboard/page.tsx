@@ -23,17 +23,17 @@ export default function DashboardPage() {
   const [lectures, setLectures] = useState<Lecture[]>([]);
   const [lecturesLoading, setLecturesLoading] = useState(true);
   const [error, setError] = useState("");
-  
+
   const router = useRouter();
   const { isLoggedIn, loading: authLoading, user } = useAuth();
-  
+
   useEffect(() => {
     // 로그인 상태 확인
     if (!authLoading && !isLoggedIn) {
       router.push('/login');
       return;
     }
-    
+
     if (isLoggedIn) {
       // 사용자 역할에 따라 다른 데이터 로드
       if (user?.role === 'instructor') {
@@ -52,12 +52,12 @@ export default function DashboardPage() {
         headers: getAuthHeaders(),
         ...DEFAULT_FETCH_OPTIONS
       });
-      
+
       if (lecturesResponse.ok) {
         const lecturesData = await lecturesResponse.json();
         setLectures(lecturesData);
       }
-      
+
       setLecturesLoading(false);
     } catch (err: any) {
       console.error('강사 데이터 로드 실패:', err);
@@ -74,19 +74,19 @@ export default function DashboardPage() {
         headers: getAuthHeaders(),
         ...DEFAULT_FETCH_OPTIONS
       });
-      
+
       if (lecturesResponse.ok) {
         const lecturesData = await lecturesResponse.json();
         setLectures(lecturesData);
       }
-      
+
     } catch (err: any) {
       setError(err.message || "오류가 발생했습니다.");
     } finally {
       setLecturesLoading(false);
     }
   };
-  
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('ko-KR', {
       year: 'numeric',
@@ -124,19 +124,19 @@ export default function DashboardPage() {
       <Row gutter={16} className="mb-8">
         <Col span={6}>
           <Card className="text-center border-0 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 hover:from-blue-100 hover:to-blue-300 transition-all duration-300 hover:shadow-lg rounded-xl overflow-hidden">
-            <Statistic 
-              title={<span className="text-blue-700 font-semibold">총 강의 수</span>} 
-              value={lectures.length} 
-              prefix={<BookOutlined className="text-blue-600" />} 
+            <Statistic
+              title={<span className="text-blue-700 font-semibold">총 강의 수</span>}
+              value={lectures.length}
+              prefix={<BookOutlined className="text-blue-600" />}
               valueStyle={{ color: '#1d4ed8', fontSize: '24px', fontWeight: 'bold' }}
             />
           </Card>
         </Col>
         <Col span={6}>
           <Card className="text-center border-0 bg-gradient-to-br from-emerald-50 via-emerald-100 to-emerald-200 hover:from-emerald-100 hover:to-emerald-300 transition-all duration-300 hover:shadow-lg rounded-xl overflow-hidden">
-            <Statistic 
-              title={<span className="text-emerald-700 font-semibold">진행 중 강의</span>} 
-              value={lectures.filter(l => l.status === 'live').length} 
+            <Statistic
+              title={<span className="text-emerald-700 font-semibold">진행 중 강의</span>}
+              value={lectures.filter(l => l.status === 'live').length}
               prefix={<VideoCameraOutlined className="text-emerald-600" />}
               valueStyle={{ color: '#059669', fontSize: '24px', fontWeight: 'bold' }}
             />
@@ -144,9 +144,9 @@ export default function DashboardPage() {
         </Col>
         <Col span={6}>
           <Card className="text-center border-0 bg-gradient-to-br from-purple-50 via-purple-100 to-purple-200 hover:from-purple-100 hover:to-purple-300 transition-all duration-300 hover:shadow-lg rounded-xl overflow-hidden">
-            <Statistic 
-              title={<span className="text-purple-700 font-semibold">예정된 강의</span>} 
-              value={lectures.filter(l => l.status === 'scheduled').length} 
+            <Statistic
+              title={<span className="text-purple-700 font-semibold">예정된 강의</span>}
+              value={lectures.filter(l => l.status === 'scheduled').length}
               prefix={<DesktopOutlined className="text-purple-600" />}
               valueStyle={{ color: '#7c3aed', fontSize: '24px', fontWeight: 'bold' }}
             />
@@ -154,9 +154,9 @@ export default function DashboardPage() {
         </Col>
         <Col span={6}>
           <Card className="text-center border-0 bg-gradient-to-br from-orange-50 via-orange-100 to-orange-200 hover:from-orange-100 hover:to-orange-300 transition-all duration-300 hover:shadow-lg rounded-xl overflow-hidden">
-            <Statistic 
-              title={<span className="text-orange-700 font-semibold">총 참가자</span>} 
-              value={lectures.reduce((sum, l) => sum + l.participant_count, 0)} 
+            <Statistic
+              title={<span className="text-orange-700 font-semibold">총 참가자</span>}
+              value={lectures.reduce((sum, l) => sum + l.participant_count, 0)}
               prefix={<TeamOutlined className="text-orange-600" />}
               valueStyle={{ color: '#ea580c', fontSize: '24px', fontWeight: 'bold' }}
             />
@@ -188,8 +188,8 @@ export default function DashboardPage() {
                 className="h-full shadow-md border-0 rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl group"
                 cover={
                   <div className={`h-36 flex items-center justify-center relative overflow-hidden ${
-                    lecture.status === 'live' 
-                      ? 'bg-gradient-to-br from-red-500 via-pink-500 to-rose-600' 
+                    lecture.status === 'live'
+                      ? 'bg-gradient-to-br from-red-500 via-pink-500 to-rose-600'
                       : lecture.status === 'scheduled'
                       ? 'bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600'
                       : 'bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600'
@@ -216,16 +216,16 @@ export default function DashboardPage() {
                   </div>
                 }
                 actions={[
-                  <Button 
-                    key="enter" 
+                  <Button
+                    key="enter"
                     type="primary"
                     icon={<PlayCircleOutlined />}
                     onClick={() => router.push(`/lectures/${lecture.id}`)}
                     className="w-full mx-4 shadow-md hover:shadow-lg transition-shadow duration-300 font-semibold"
                     size="large"
-                    style={{ 
-                      background: lecture.status === 'live' 
-                        ? 'linear-gradient(135deg, #ef4444, #dc2626)' 
+                    style={{
+                      background: lecture.status === 'live'
+                        ? 'linear-gradient(135deg, #ef4444, #dc2626)'
                         : 'linear-gradient(135deg, #3b82f6, #2563eb)',
                       border: 'none'
                     }}
@@ -239,20 +239,20 @@ export default function DashboardPage() {
                     <Title level={5} className="line-clamp-2 mb-2 text-gray-900 group-hover:text-blue-700 transition-colors duration-300">
                       {lecture.title}
                     </Title>
-                    <Badge 
-                      status={getLectureStatusColor(lecture.status)} 
+                    <Badge
+                      status={getLectureStatusColor(lecture.status)}
                       text={
                         <span className="font-medium text-xs uppercase tracking-wide">
                           {lecture.status === 'live' ? '진행중' : lecture.status === 'scheduled' ? '예정됨' : '종료됨'}
                         </span>
-                      } 
+                      }
                     />
                   </div>
-                  
+
                   <Text className="text-gray-600 text-sm line-clamp-3 leading-relaxed block">
                     {lecture.description}
                   </Text>
-                  
+
                   <div className="pt-3 border-t border-gray-100">
                     <div className="flex justify-between text-xs text-gray-500 mb-3">
                       <span className="flex items-center gap-1">
@@ -263,7 +263,7 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${
-                          lecture.status === 'live' ? 'bg-red-500 animate-pulse' : 
+                          lecture.status === 'live' ? 'bg-red-500 animate-pulse' :
                           lecture.status === 'scheduled' ? 'bg-blue-500' : 'bg-gray-400'
                         }`}></div>
                         <Text className={`font-semibold text-sm ${
@@ -316,15 +316,15 @@ export default function DashboardPage() {
                   <Card
                     className="bg-white/15 backdrop-blur-sm border-white/30 text-white hover:bg-white/20 transition-all duration-300 rounded-xl shadow-lg hover:shadow-xl"
                     actions={[
-                      <Button 
-                        key="join" 
+                      <Button
+                        key="join"
                         type="primary"
                         icon={<PlayCircleOutlined />}
                         onClick={() => router.push(`/lectures/${lecture.id}`)}
                         className="w-full mx-3 font-semibold"
                         size="large"
                         danger
-                        style={{ 
+                        style={{
                           background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
                           border: 'none',
                           boxShadow: '0 4px 15px rgba(220, 38, 38, 0.4)'
@@ -344,11 +344,11 @@ export default function DashboardPage() {
                           LIVE
                         </div>
                       </div>
-                      
+
                       <Text className="text-red-100 text-sm line-clamp-2 block leading-relaxed">
                         {lecture.description}
                       </Text>
-                      
+
                       <div className="pt-2 border-t border-white/20">
                         <div className="flex items-center justify-between">
                           <Text className="text-red-100 text-sm font-medium">
@@ -394,8 +394,8 @@ export default function DashboardPage() {
                 className="h-full shadow-md border-0 rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl group"
                 cover={
                   <div className={`h-36 flex items-center justify-center relative overflow-hidden ${
-                    lecture.status === 'live' 
-                      ? 'bg-gradient-to-br from-red-500 via-pink-500 to-rose-600' 
+                    lecture.status === 'live'
+                      ? 'bg-gradient-to-br from-red-500 via-pink-500 to-rose-600'
                       : lecture.status === 'scheduled'
                       ? 'bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600'
                       : 'bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600'
@@ -422,8 +422,8 @@ export default function DashboardPage() {
                   </div>
                 }
                 actions={[
-                  <Button 
-                    key="join" 
+                  <Button
+                    key="join"
                     type={lecture.status === 'live' ? 'primary' : 'default'}
                     icon={<PlayCircleOutlined />}
                     disabled={lecture.status === 'ended'}
@@ -431,13 +431,12 @@ export default function DashboardPage() {
                     className="w-full mx-4 shadow-md hover:shadow-lg transition-shadow duration-300 font-semibold"
                     size="large"
                     danger={lecture.status === 'live'}
-                    style={lecture.status === 'live' ? { 
+                    style={lecture.status === 'live' ? {
                       background: 'linear-gradient(135deg, #ef4444, #dc2626)',
                       border: 'none'
                     } : {}}
                   >
-                    {lecture.status === 'live' ? '🔴 지금 참여' : 
-                     lecture.status === 'scheduled' ? '⏰ 대기실 입장' : '📖 다시보기'}
+                    {lecture.status === 'live' ? '🔴 지금 참여' : lecture.status === 'scheduled' ? '⏰ 대기실 입장' : '📖 다시보기'}
                   </Button>
                 ]}
               >
@@ -446,20 +445,20 @@ export default function DashboardPage() {
                     <Title level={5} className="line-clamp-2 mb-2 text-gray-900 group-hover:text-blue-700 transition-colors duration-300">
                       {lecture.title}
                     </Title>
-                    <Badge 
-                      status={getLectureStatusColor(lecture.status)} 
+                    <Badge
+                      status={getLectureStatusColor(lecture.status)}
                       text={
                         <span className="font-medium text-xs uppercase tracking-wide">
                           {lecture.status === 'live' ? '진행중' : lecture.status === 'scheduled' ? '예정됨' : '종료됨'}
                         </span>
-                      } 
+                      }
                     />
                   </div>
-                  
+
                   <Text className="text-gray-600 text-sm line-clamp-3 leading-relaxed block">
                     {lecture.description}
                   </Text>
-                  
+
                   <div className="pt-3 border-t border-gray-100">
                     <div className="flex justify-between text-xs text-gray-500 mb-3">
                       <span className="flex items-center gap-1">
@@ -470,7 +469,7 @@ export default function DashboardPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${
-                          lecture.status === 'live' ? 'bg-red-500 animate-pulse' : 
+                          lecture.status === 'live' ? 'bg-red-500 animate-pulse' :
                           lecture.status === 'scheduled' ? 'bg-blue-500' : 'bg-gray-400'
                         }`}></div>
                         <Text className={`font-semibold text-sm ${
@@ -516,20 +515,20 @@ export default function DashboardPage() {
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
           {/* {error && (
-            <Alert 
-              message="오류 발생" 
-              description={error} 
-              type="error" 
-              showIcon 
+            <Alert
+              message="오류 발생"
+              description={error}
+              type="error"
+              showIcon
               className="mb-6"
               closable
               onClose={() => setError('')}
             />
           )} */}
-          
+
           {user?.role === 'instructor' ? <InstructorDashboard /> : <StudentDashboard />}
         </div>
       </div>
     </MainLayout>
   );
-} 
+}

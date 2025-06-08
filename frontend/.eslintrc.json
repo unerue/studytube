@@ -1,0 +1,63 @@
+{
+    "env": {
+      "browser": true,
+      "es2021": true,
+      "node": true
+    },
+    "extends": [
+      // "@feature-sliced",
+      // "@feature-sliced/eslint-config/rules/import-order/experimental",
+      "next/core-web-vitals",
+      "plugin:prettier/recommended",
+      "plugin:react/recommended",
+      // "plugin:jsx-a11y/recommended",
+      // "plugin:@typescript-eslint/recommended",
+      "plugin:storybook/recommended"
+    ],
+    "plugins": ["prettier", "react", "jsx-a11y"],
+    "rules": {
+      "react/no-unknown-property": "off",
+      "react/prop-types": "off", // prop-types 검사 비활성화
+      "import/no-internal-modules": "off",
+      "react/react-in-jsx-scope": "off",
+      "react/no-unescaped-entities": "off",
+      "@next/next/no-page-custom-font": "off",
+      // "import/order": [
+      //   "error",
+      //   {
+      //     "groups": [["builtin", "external"], "internal", ["parent", "sibling", "index"]],
+      //     "newlines-between": "always",
+      //     "alphabetize": {
+      //       "order": "asc",
+      //       "caseInsensitive": true
+      //     }
+      //   }
+      // ],
+      "quotes": [
+        "error",
+        "single",
+        {
+          "avoidEscape": true
+        }
+      ],
+      "jsx-quotes": ["error", "prefer-double"],
+      "camelcase": [
+        "error",
+        {
+          "properties": "always"
+        }
+      ],
+      "react/jsx-pascal-case": [
+        "error",
+        {
+          "allowAllCaps": true,
+          "ignore": []
+        }
+      ]
+    },
+    "settings": {
+      "react": {
+        "version": "detect"
+      }
+    }
+  }

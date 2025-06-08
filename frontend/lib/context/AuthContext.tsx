@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { API_BASE_URL, AUTH_ENDPOINTS, fetchWithTimeout } from '../api/config';
 
 interface User {
   id?: number;
@@ -48,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (token) {
           // 토큰이 있으면 Bearer 토큰으로 요청
           console.log('AuthProvider: Bearer 토큰으로 /auth/me 요청');
-          const response = await fetch('http://localhost:8000/auth/me', {
+          const response = await fetch(`${API_BASE_URL}/auth/me`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -71,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             
             // 쿠키 인증 시도
             console.log('AuthProvider: 쿠키로 /auth/me 요청');
-            const cookieResponse = await fetch('http://localhost:8000/auth/me', {
+            const cookieResponse = await fetch(`${API_BASE_URL}/auth/me`, {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
@@ -96,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // 토큰이 없으면 쿠키만 확인
           console.log('토큰 없음, 쿠키 확인 중...');
           console.log('AuthProvider: 쿠키로 /auth/me 요청');
-          const response = await fetch('http://localhost:8000/auth/me', {
+          const response = await fetch(`${API_BASE_URL}/auth/me`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -126,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // 백엔드 서버가 실행되지 않은 경우에 대한 처리
         if (err instanceof TypeError && err.message.includes('fetch')) {
           console.warn('백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.');
-          setError('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+          setError('서버에 연결할 수 없습니다. 서버가 실행 중인지 확인하세요.');
         }
       } finally {
         console.log('AuthProvider: 인증 확인 완료, 로딩 상태 해제');
@@ -135,8 +136,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // 3초 타임아웃 설정으로 무한 로딩 방지
+    const timeoutId = setTimeout(() => {
+      if (loading && !isInitialized) {
+        console.log('AuthProvider: 인증 확인 타임아웃, 로딩 상태 해제');
+        setLoading(false);
+        setIsInitialized(true);
+        setError('서버 응답 시간이 초과되었습니다. 나중에 다시 시도하세요.');
+      }
+    }, 3000);
+
     checkAuth();
-  }, [isInitialized]); // isInitialized 의존성 추가
+
+    // 클린업 함수
+    return () => clearTimeout(timeoutId);
+  }, [isInitialized, loading]); // isInitialized와 loading 의존성 추가
 
   // 로그인 함수
   const login = async (email: string, password: string) => {
@@ -150,22 +164,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       formData.append("username", email); // OAuth2는 username 필드 사용
       formData.append("password", password);
 
-      console.log('AuthProvider: 로그인 API 요청');
-      const response = await fetch("http://localhost:8000/auth/login", {
+      console.log('AuthProvider: 로그인 API 요청 시작');
+      console.log('AuthProvider: 요청 URL:', AUTH_ENDPOINTS.LOGIN);
+      
+      // 모든 요청 헤더 명시적 설정
+      const headers = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+      };
+      
+      console.log('AuthProvider: 요청 헤더:', headers);
+      console.log('AuthProvider: 요청 바디(요약):', `username=${email}, password=[MASKED]`);
+
+      const response = await fetch(AUTH_ENDPOINTS.LOGIN, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
+        headers: headers,
         body: formData,
         credentials: "include",  // 쿠키 포함
+        mode: "cors",  // CORS 모드 명시적 설정
       });
 
-      const data = await response.json();
-      console.log('AuthProvider: 로그인 응답:', response.status, data);
+      console.log('AuthProvider: 로그인 응답 상태:', response.status);
+      console.log('AuthProvider: 응답 헤더:', Object.fromEntries([...response.headers.entries()]));
 
       if (!response.ok) {
-        throw new Error(data.detail || "로그인 실패");
+        // 응답을 텍스트로 먼저 읽어보고 JSON 파싱 시도
+        const textResponse = await response.text();
+        console.error('AuthProvider: 로그인 실패 응답 본문:', textResponse);
+        
+        let errorDetail = "로그인 실패";
+        
+        try {
+          const data = JSON.parse(textResponse);
+          errorDetail = data.detail || errorDetail;
+        } catch (e) {
+          console.error('응답을 JSON으로 파싱할 수 없습니다:', textResponse);
+        }
+        
+        throw new Error(errorDetail);
       }
+
+      // 응답 본문 확인
+      const textResponse = await response.text();
+      console.log('AuthProvider: 응답 본문(텍스트):', textResponse);
+      
+      // JSON으로 다시 파싱
+      const data = textResponse ? JSON.parse(textResponse) : {};
+      console.log('AuthProvider: 로그인 응답 데이터:', data);
 
       // 토큰 저장
       if (data.access_token) {
@@ -174,16 +219,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('AuthProvider: 토큰 내용 확인:', data.access_token.substring(0, 20) + '...');
       } else {
         console.error('AuthProvider: 응답에 access_token이 없습니다!', data);
+        throw new Error('서버 응답에 액세스 토큰이 없습니다.');
       }
       
       // 사용자 정보 가져오기
       console.log('AuthProvider: 사용자 정보 요청');
-      const userResponse = await fetch('http://localhost:8000/auth/me', {
+      const userResponse = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
-          'Authorization': `Bearer ${data.access_token}`
+          'Authorization': `Bearer ${data.access_token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         credentials: "include",
       });
+      
+      console.log('AuthProvider: 사용자 정보 응답 상태:', userResponse.status);
       
       if (userResponse.ok) {
         const userData = await userResponse.json();
@@ -197,6 +247,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log('저장된 토큰 확인:', storedToken ? '존재함' : '없음');
       } else {
         console.error('사용자 정보 요청 실패:', userResponse.status, userResponse.statusText);
+        // 응답 본문 확인
+        try {
+          const errorText = await userResponse.text();
+          console.error('사용자 정보 오류 응답:', errorText);
+        } catch (e) {
+          console.error('사용자 정보 오류 응답을 읽을 수 없습니다');
+        }
         throw new Error('사용자 정보를 가져올 수 없습니다.');
       }
     } catch (err: any) {
@@ -204,6 +261,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(err.message || "로그인 중 오류가 발생했습니다.");
       setUser(null);
       setIsLoggedIn(false);
+      // 로컬 스토리지에서 토큰 삭제
+      localStorage.removeItem("access_token");
       throw err;
     } finally {
       setLoading(false);
@@ -217,10 +276,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8000/auth/register", {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Accept": "application/json",
         },
         body: JSON.stringify({
           username,
@@ -230,12 +290,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }),
       });
 
+      if (!response.ok) {
+        // 응답을 텍스트로 먼저 읽어보고 JSON 파싱 시도
+        const textResponse = await response.text();
+        let errorDetail = "회원가입 실패";
+        
+        try {
+          const data = JSON.parse(textResponse);
+          errorDetail = data.detail || errorDetail;
+        } catch (e) {
+          console.error('응답을 JSON으로 파싱할 수 없습니다:', textResponse);
+        }
+        
+        throw new Error(errorDetail);
+      }
+
       const data = await response.json();
       console.log('AuthProvider: 회원가입 응답:', response.status, data);
-
-      if (!response.ok) {
-        throw new Error(data.detail || "회원가입 실패");
-      }
 
       // 회원가입 성공 (자동 로그인은 하지 않음)
       return data;
@@ -250,44 +321,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 로그아웃 함수
   const logout = () => {
-    console.log('AuthProvider: 로그아웃 실행');
-    // 토큰 제거
-    localStorage.removeItem('access_token');
+    // 로컬 스토리지에서 토큰 제거
+    localStorage.removeItem("access_token");
     
-    // 쿠키 제거 (백엔드 로그아웃 API 호출)
-    fetch('http://localhost:8000/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
+    // 백엔드 로그아웃 호출 (쿠키 제거)
+    fetch(`${API_BASE_URL}/auth/logout`, {
+      method: "POST",
+      credentials: "include"
     }).catch(err => {
-      console.error('로그아웃 API 호출 실패:', err);
+      console.error("로그아웃 API 호출 실패:", err);
     });
     
-    // 쿠키 직접 제거 (클라이언트 사이드)
-    document.cookie = 'access_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    
+    // 상태 초기화
     setUser(null);
     setIsLoggedIn(false);
-    setError(null);
-    setIsInitialized(false); // 로그아웃 시 초기화 상태 리셋
+    console.log('로그아웃 완료');
   };
 
-  const value = {
-    user,
-    loading,
-    isLoggedIn,
-    login,
-    register,
-    logout,
-    error
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider
+      value={{ user, loading, isLoggedIn, login, register, logout, error }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 } 

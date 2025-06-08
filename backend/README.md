@@ -37,7 +37,7 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # 서버 실행
-uvicorn app.main:app --reload
+uvicorn src.main:app --reload
 ```
 
 ## API 문서

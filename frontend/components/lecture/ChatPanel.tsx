@@ -176,8 +176,8 @@ export function ChatPanel({
                 </div>
               )}
             </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/20">
-              <Text className="text-white text-sm break-words leading-relaxed">
+            <div className="bg-white/20 backdrop-blur-sm rounded-lg p-3 border border-white/30">
+              <Text className="text-white text-sm break-words leading-relaxed font-medium">
                 {msg.message}
               </Text>
               {msg.translated_message && (
@@ -271,7 +271,7 @@ export function ChatPanel({
             onKeyPress={handleKeyPress}
             placeholder="메시지를 입력하세요..."
             autoSize={{ minRows: 1, maxRows: 3 }}
-            className="flex-1 bg-transparent border-white/20 text-white placeholder-gray-400 resize-none"
+            className="flex-1 bg-transparent border-white/20 text-black placeholder-gray-400 resize-none"
           />
           <Button
             type="primary"

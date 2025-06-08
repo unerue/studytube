@@ -3,8 +3,9 @@ name = "backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12,<3.13"
 dependencies = [
+    "aiofiles>=24.1.0",
     "aiosqlite>=0.21.0",
     "bcrypt>=4.3.0",
     "email-validator>=2.2.0",
@@ -13,10 +14,33 @@ dependencies = [
     "gtts>=2.5.4",
     "httpx>=0.28.1",
     "moviepy>=2.1.2",
+    "openai>=1.84.0",
     "passlib[bcrypt]>=1.7.4",
     "pydantic-settings>=2.9.1",
     "python-jose[cryptography]>=3.4.0",
     "python-multipart>=0.0.20",
+    "realtimestt>=0.3.104",
+    "speechrecognition>=3.14.3",
     "sqlmodel>=0.0.24",
     "uvicorn[standard]>=0.34.2",
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "torchaudio>=2.5.1",
+    "ffmpeg-python>=0.2.0",
 ]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu126", marker = "sys_platform == 'win32'" },  # Windows용 CUDA 버전
+]
+torchvision = [
+    { index = "pytorch-cu126", marker = "sys_platform == 'win32'" },
+]
+torchaudio = [
+    { index = "pytorch-cu126", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true

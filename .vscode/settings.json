@@ -1,0 +1,36 @@
+{
+//   "json.format.enable": true,
+//   "editor.wordWrap": "on",
+//   "editor.tabSize": 2,
+//   "editor.insertSpaces": true,
+//   "editor.formatOnPaste": false,
+//   "editor.formatOnSave": true,
+  "editor.fontSize": 14,
+//   "editor.fontFamily": "D2Coding, Consolas, monospace",
+//   "editor.defaultFormatter": "esbenp.prettier-vscode",
+//   "editor.codeActionsOnSave": {
+//     "source.fixAll.eslint": "explicit"
+//   },
+//   "files.eol": "\n",
+//   "files.trimTrailingWhitespace": true,
+//   "files.insertFinalNewline": true,
+//   "typescript.disableAutomaticTypeAcquisition": true,
+//   "typescript.tsserver.maxTsServerMemory": 3072,
+//   "typescript.tsserver.watchOptions": {
+//     "watchFile": "useFsEvents",
+//     "watchDirectory": "useFsEvents",
+//     "fallbackPolling": "dynamicPriorityPolling"
+//   },
+//   "[javascript]": {
+//     "editor.defaultFormatter": "esbenp.prettier-vscode"
+//   },
+//   "[javascriptreact]": {
+//     "editor.defaultFormatter": "esbenp.prettier-vscode"
+//   },
+//   "[typescript]": {
+//     "editor.defaultFormatter": "esbenp.prettier-vscode"
+//   },
+//   "[typescriptreact]": {
+//     "editor.defaultFormatter": "esbenp.prettier-vscode"
+//   }
+}
