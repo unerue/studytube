@@ -80,7 +80,7 @@ class FixedLectureRecorder:
                     min_gap_between_recordings=0,
                     enable_realtime_transcription=True,
                     realtime_processing_pause=0,
-                    realtime_model_type='tiny.en',
+                    realtime_model_type='tiny',
                     # 콜백 제거 - external feed 모드에서는 폴링 방식 사용
                 )
                 

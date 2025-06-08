@@ -953,7 +953,7 @@ export default function LiveLectureRoom({
                 }}
               >
                 <div 
-                  className="text-center font-white text-2xl leading-relaxed"
+                  className="text-center font-white bg-white text-2xl leading-relaxed"
                   style={{
                     color: '#FFFF00 !important',
                     // textShadow: `
